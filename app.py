@@ -1,16 +1,20 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import os
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Import Modular Components
+# Import All Modular Components
 from modules.gis_map import render_gis_map
 from modules.acceptance import render_acceptance_module
+from modules.analytics import render_analytics_module
+from modules.gantt import render_gantt_module
+from modules.evm import render_evm_module
+from modules.editor import render_editor_module
+from modules.docs import render_docs_module
+from modules.alerts import render_alerts_module
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
@@ -18,7 +22,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Styling & Preloader
+# Styling & SVG Preloader
 st.markdown("""
     <style>
         .main { background-color: #0b0f19; }
@@ -53,6 +57,8 @@ st.markdown("""
         div[data-testid="stMetric"] { background-color: #1E293B !important; border-radius: 10px; padding: 15px; border: 1px solid #334155; }
         div[data-testid="stMetric"] label { color: #94A3B8 !important; font-size: 0.85rem !important; font-weight: 600; }
         div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #38BDF8 !important; font-size: 1.8rem !important; font-weight: 700; }
+        .alert-box-critical { background-color: #7F1D1D !important; color: #FFFFFF !important; border-left: 6px solid #EF4444; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+        .alert-box-warning { background-color: #78350F !important; color: #FFFFFF !important; border-left: 6px solid #F59E0B; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
     </style>
 
     <div id="preloader">
@@ -106,15 +112,42 @@ def load_data():
 
 df = load_data()
 
-# Sidebar Control Center
+# Excel Exporter
+def generate_excel_report(dataframe):
+    output = io.BytesIO()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Executive Summary"
+    
+    ws.merge_cells('A1:G1')
+    ws['A1'] = "PROJECT PLUS - EXECUTIVE REPORT"
+    ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+    ws['A1'].fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 35
+
+    for r in dataframe_to_rows(dataframe[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Budget', 'Actual', 'Risk']], index=False, header=True):
+        ws.append(r)
+
+    header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    for cell in ws[3]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    wb.save(output)
+    return output.getvalue()
+
+# Sidebar Controls
 st.sidebar.title("📡 Project Plus Controls")
 user_role = st.sidebar.selectbox("Active Persona Role:", ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"])
 st.sidebar.markdown("---")
 
 if user_role == "👑 Executive / C-Suite":
-    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View"]
+    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
 elif user_role == "👔 Regional Project Manager":
-    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor", "📸 Site Photos & Docs"]
+    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
 else:
     available_modules = ["📋 Digital PAT/FAC Acceptance", "📸 Site Photos & Docs", "📝 Interactive Data Editor", "🗺️ Site Map & GIS Coordinates"]
 
@@ -127,6 +160,18 @@ contractors = st.sidebar.multiselect("Filter Contractor:", options=df['Contracto
 risk_levels = st.sidebar.multiselect("Filter Risk:", options=df['Risk'].unique(), default=df['Risk'].unique())
 
 filtered_df = df[(df['Region'].isin(regions)) & (df['Contractor'].isin(contractors)) & (df['Risk'].isin(risk_levels))]
+
+if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📥 Executive Exports")
+    excel_data = generate_excel_report(filtered_df)
+    st.sidebar.download_button(
+        label="📄 Export Excel Summary",
+        data=excel_data,
+        file_name="Executive_Telecom_Report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
 
 # Header
 st.title("Project Plus - Telecom Infrastructure PMIS")
@@ -153,49 +198,20 @@ else:
 
 st.markdown("---")
 
-# Module Routing
-if nav_option == "📋 Digital PAT/FAC Acceptance":
-    render_acceptance_module(filtered_df)
-
+# Clean Router Invocation
+if nav_option == "📊 Executive Analytics":
+    render_analytics_module(filtered_df)
 elif nav_option == "🗺️ Site Map & GIS Coordinates":
     render_gis_map(filtered_df)
-
-elif nav_option == "📊 Executive Analytics":
-    col1, col2 = st.columns(2)
-    with col1:
-        fig_reg = px.bar(filtered_df, x='Region', y='Overall Progress', color='Risk', color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'})
-        fig_reg.update_layout(template="plotly_dark", yaxis_tickformat='.0%')
-        st.plotly_chart(fig_reg, use_container_width=True)
-    with col2:
-        fig_contractor = px.pie(filtered_df, names='Contractor', values='Budget', hole=0.4)
-        fig_contractor.update_layout(template="plotly_dark")
-        st.plotly_chart(fig_contractor, use_container_width=True)
-
+elif nav_option == "📋 Digital PAT/FAC Acceptance":
+    render_acceptance_module(filtered_df)
 elif nav_option == "📅 Schedule & Gantt Timeline":
-    fig_gantt = px.timeline(filtered_df, x_start="Start Date", x_end="Forecast Finish", y="Site ID", color="Risk")
-    fig_gantt.update_yaxes(autorange="reversed")
-    fig_gantt.update_layout(template="plotly_dark", height=400)
-    st.plotly_chart(fig_gantt, use_container_width=True)
-
+    render_gantt_module(filtered_df)
 elif nav_option == "💰 Financial EVM View":
-    fig_evm = go.Figure()
-    fig_evm.add_trace(go.Bar(x=filtered_df['Site ID'], y=filtered_df['Budget'], name='Budget', marker_color='#64748B'))
-    fig_evm.add_trace(go.Bar(x=filtered_df['Site ID'], y=filtered_df['Actual'], name='Actual Cost', marker_color='#EF4444'))
-    fig_evm.add_trace(go.Bar(x=filtered_df['Site ID'], y=filtered_df['Earned Value'], name='Earned Value', marker_color='#10B981'))
-    fig_evm.update_layout(barmode='group', template="plotly_dark", height=400)
-    st.plotly_chart(fig_evm, use_container_width=True)
-
+    render_evm_module(filtered_df)
 elif nav_option == "📝 Interactive Data Editor":
-    st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
-
+    render_editor_module(filtered_df, user_role)
 elif nav_option == "📸 Site Photos & Docs":
-    selected_site = st.selectbox("Select Target Site:", options=filtered_df['Site ID'] + " - " + filtered_df['Name'])
-    site_id = selected_site.split(" - ")[0]
-    site_folder = os.path.join(UPLOAD_DIR, site_id)
-    os.makedirs(site_folder, exist_ok=True)
-    uploaded_files = st.file_uploader("Upload Images/PDFs", type=["png", "jpg", "jpeg", "pdf"], accept_multiple_files=True)
-    if uploaded_files:
-        for f in uploaded_files:
-            with open(os.path.join(site_folder, f.name), "wb") as out:
-                out.write(f.getbuffer())
-        st.success("Files saved!")
+    render_docs_module(filtered_df, UPLOAD_DIR)
+elif nav_option == "🚨 Automated Alerts Engine":
+    render_alerts_module(filtered_df)
