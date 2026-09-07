@@ -9,15 +9,95 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 st.set_page_config(
-    page_title="God's Eye View - Telecom Build Dashboard",
+    page_title="Project Plus - Telecom PMIS",
     page_icon="📡",
     layout="wide"
 )
 
-# Dark Theme & Custom Alert CSS
+# Inject Custom CSS and SVG Preloader Animation
 st.markdown("""
     <style>
-        .main { background-color: #0F172A; }
+        .main { background-color: #0b0f19; }
+        
+        /* Preloader Styles */
+        #preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #0b0f19;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999999;
+            animation: fadeOut 0.8s ease-in-out 3.5s forwards;
+            pointer-events: none;
+        }
+
+        .animated-logo-svg {
+            width: 140px;
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        .tower-structure {
+            stroke: #10b981;
+            stroke-width: 2.5;
+            fill: none;
+            stroke-dasharray: 600;
+            stroke-dashoffset: 600;
+            animation: drawTower 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .signal-wave {
+            fill: none;
+            stroke: #0284c7;
+            stroke-width: 2;
+            opacity: 0;
+            transform-origin: center;
+            filter: drop-shadow(0 0 8px rgba(2, 132, 199, 0.6));
+            animation: rippleWave 2.2s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
+        }
+        .wave-2 { animation-delay: 0.4s; stroke: #06b6d4; }
+        .wave-3 { animation-delay: 0.8s; stroke: #10b981; }
+
+        .brand-text-main {
+            font-size: 32px;
+            font-weight: 700;
+            fill: #ffffff;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: slideUpText 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.2s forwards;
+        }
+        .brand-text-plus { fill: #10b981; }
+        
+        .brand-tagline {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-top: 8px;
+            opacity: 0;
+            animation: slideUpText 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.5s forwards;
+        }
+
+        .copyright-tagline {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 15px;
+            opacity: 0;
+            animation: fadeInSimple 1s ease 1.8s forwards;
+        }
+
+        @keyframes drawTower { to { stroke-dashoffset: 0; fill: rgba(16, 185, 129, 0.05); } }
+        @keyframes rippleWave { 0% { opacity: 0; transform: scale(0.75); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.25); } }
+        @keyframes slideUpText { to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInSimple { to { opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* Metric Styling */
         div[data-testid="stMetric"] {
             background-color: #1E293B !important;
             border-radius: 10px;
@@ -34,6 +114,7 @@ st.markdown("""
             font-size: 1.8rem !important;
             font-weight: 700;
         }
+
         .alert-box-critical {
             background-color: #7F1D1D !important;
             color: #FFFFFF !important;
@@ -51,13 +132,32 @@ st.markdown("""
             margin-bottom: 12px;
         }
     </style>
+
+    <!-- PRELOADER OVERLAY HTML -->
+    <div id="preloader">
+        <div style="text-align:center;">
+            <svg class="animated-logo-svg" viewBox="0 0 100 100">
+                <circle class="signal-wave wave-1" cx="50" cy="40" r="15" />
+                <circle class="signal-wave wave-2" cx="50" cy="40" r="25" />
+                <circle class="signal-wave wave-3" cx="50" cy="40" r="35" />
+                <path class="tower-structure" d="M50,10 L32,85 L68,85 Z M32,85 L50,45 L68,85 M36,68 L64,68 M41,48 L59,48 M50,10 L50,2" />
+            </svg>
+            <div>
+                <svg width="260" height="40" viewBox="0 0 240 40">
+                    <text x="50%" y="30" text-anchor="middle" class="brand-text-main">Project <tspan class="brand-text-plus">Plus</tspan></text>
+                </svg>
+            </div>
+            <div class="brand-tagline">Precision. Performance. Progress.</div>
+            <div class="copyright-tagline">© Copyright Rana Muhammad Zagham - PMP®</div>
+        </div>
+    </div>
 """, unsafe_allow_html=True)
 
 UPLOAD_DIR = "uploaded_site_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # -----------------------------------------------------------------------------
-# DATA ENGINE
+# DATA ENGINE WITH GIS COORDINATES
 # -----------------------------------------------------------------------------
 EXCEL_FILE = "Gods_Eye_View_Telecom_Dashboard.xlsx"
 
@@ -67,11 +167,11 @@ def load_data():
         df = pd.read_excel(EXCEL_FILE)
     else:
         sites_data = [
-            {"Site ID": "ST-1001", "Name": "Downtown Macro", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low", "Start Date": "2026-01-01", "Baseline Finish": "2026-02-15", "Forecast Finish": "2026-02-10"},
-            {"Site ID": "ST-1002", "Name": "North Hill Rooftop", "Region": "North", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low", "Start Date": "2026-01-10", "Baseline Finish": "2026-02-28", "Forecast Finish": "2026-02-25"},
-            {"Site ID": "ST-1003", "Name": "West Highway Lattice", "Region": "West", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium", "Start Date": "2026-02-01", "Baseline Finish": "2026-04-15", "Forecast Finish": "2026-04-30"},
-            {"Site ID": "ST-1004", "Name": "East Port Guyed", "Region": "East", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical", "Start Date": "2026-02-15", "Baseline Finish": "2026-05-10", "Forecast Finish": "2026-06-15"},
-            {"Site ID": "ST-1005", "Name": "South Valley Monopole", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium", "Start Date": "2026-03-01", "Baseline Finish": "2026-05-30", "Forecast Finish": "2026-06-10"}
+            {"Site ID": "ST-1001", "Name": "Riyadh Macro Hub", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low", "Start Date": "2026-01-01", "Baseline Finish": "2026-02-15", "Forecast Finish": "2026-02-10", "lat": 24.7136, "lon": 46.6753},
+            {"Site ID": "ST-1002", "Name": "Jeddah Port Tower", "Region": "West", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low", "Start Date": "2026-01-10", "Baseline Finish": "2026-02-28", "Forecast Finish": "2026-02-25", "lat": 21.5433, "lon": 39.1728},
+            {"Site ID": "ST-1003", "Name": "Dammam Industrial", "Region": "East", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium", "Start Date": "2026-02-01", "Baseline Finish": "2026-04-15", "Forecast Finish": "2026-04-30", "lat": 26.4207, "lon": 50.0888},
+            {"Site ID": "ST-1004", "Name": "Madinah Central", "Region": "West", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical", "Start Date": "2026-02-15", "Baseline Finish": "2026-05-10", "Forecast Finish": "2026-06-15", "lat": 24.5247, "lon": 39.5692},
+            {"Site ID": "ST-1005", "Name": "Abha South Lattice", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium", "Start Date": "2026-03-01", "Baseline Finish": "2026-05-30", "Forecast Finish": "2026-06-10", "lat": 18.2164, "lon": 42.5053}
         ]
         df = pd.DataFrame(sites_data)
 
@@ -99,7 +199,7 @@ def generate_excel_report(dataframe):
     ws.title = "Executive Summary"
     
     ws.merge_cells('A1:G1')
-    ws['A1'] = "TELECOM TOWER BUILD - EXECUTIVE REPORT"
+    ws['A1'] = "PROJECT PLUS - EXECUTIVE REPORT"
     ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
     ws['A1'].fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
@@ -119,11 +219,10 @@ def generate_excel_report(dataframe):
     return output.getvalue()
 
 # -----------------------------------------------------------------------------
-# ROLE-BASED SIDEBAR NAVIGATION & FILTERS
+# SIDEBAR CONTROL CENTER
 # -----------------------------------------------------------------------------
-st.sidebar.title("👤 Role Security & PMIS Controls")
+st.sidebar.title("📡 Project Plus Controls")
 
-# Role Switcher
 user_role = st.sidebar.selectbox(
     "Active Persona Role:",
     ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"]
@@ -131,10 +230,10 @@ user_role = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 
-# Dynamic Module Access Map based on Role
 if user_role == "👑 Executive / C-Suite":
     available_modules = [
         "📊 Executive Analytics",
+        "🗺️ Site Map & GIS Coordinates",
         "📅 Schedule & Gantt Timeline",
         "💰 Financial EVM View",
         "🚨 Automated Alerts Engine"
@@ -142,14 +241,16 @@ if user_role == "👑 Executive / C-Suite":
 elif user_role == "👔 Regional Project Manager":
     available_modules = [
         "📊 Executive Analytics",
+        "🗺️ Site Map & GIS Coordinates",
         "📅 Schedule & Gantt Timeline",
         "💰 Financial EVM View",
         "📝 Interactive Data Editor",
         "📸 Site Photos & Docs",
         "🚨 Automated Alerts Engine"
     ]
-else: # Field Supervisor / Contractor
+else:
     available_modules = [
+        "🗺️ Site Map & GIS Coordinates",
         "📸 Site Photos & Docs",
         "📝 Interactive Data Editor",
         "📅 Schedule & Gantt Timeline"
@@ -170,7 +271,6 @@ filtered_df = df[
     (df['Risk'].isin(risk_levels))
 ]
 
-# Only Executive and PM roles get report export capability
 if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
     st.sidebar.markdown("---")
     st.sidebar.subheader("📥 Executive Exports")
@@ -186,8 +286,8 @@ if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
 # -----------------------------------------------------------------------------
 # HEADER & KPIS
 # -----------------------------------------------------------------------------
-st.title("📡 Telecom Tower Build: Executive God's Eye View")
-st.caption(f"Logged in as: **{user_role}**")
+st.title("Project Plus - Telecom Infrastructure PMIS")
+st.caption(f"Persona View: **{user_role}**")
 
 total_sites = len(filtered_df)
 avg_progress = filtered_df['Overall Progress'].mean() if total_sites > 0 else 0
@@ -195,7 +295,6 @@ total_budget = filtered_df['Budget'].sum()
 total_actual = filtered_df['Actual'].sum()
 avg_cpi = filtered_df['CPI'].mean() if total_sites > 0 else 1.0
 
-# Mask financial metrics for Field Contractors
 if user_role == "👷 Field Supervisor / Contractor":
     c1, c2, c3 = st.columns(3)
     c1.metric("TOTAL SITES", total_sites)
@@ -234,6 +333,27 @@ if nav_option == "📊 Executive Analytics":
         )
         fig_contractor.update_layout(template="plotly_dark")
         st.plotly_chart(fig_contractor, use_container_width=True)
+
+elif nav_option == "🗺️ Site Map & GIS Coordinates":
+    st.subheader("🗺️ Geographic Site Distribution Map")
+    if 'lat' in filtered_df.columns and 'lon' in filtered_df.columns:
+        fig_map = px.scatter_mapbox(
+            filtered_df,
+            lat="lat",
+            lon="lon",
+            hover_name="Name",
+            hover_data=["Site ID", "Region", "Contractor", "Risk"],
+            color="Risk",
+            color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'},
+            size_max=15,
+            zoom=4.5,
+            mapbox_style="carto-darkmatter",
+            title="Active Telecom Sites Across Network"
+        )
+        fig_map.update_layout(margin={"r":0,"t":40,"l":0,"b":0}, height=500)
+        st.plotly_chart(fig_map, use_container_width=True)
+    else:
+        st.info("No lat/lon GPS coordinates found in dataset.")
 
 elif nav_option == "📅 Schedule & Gantt Timeline":
     st.subheader("Tower Rollout Timeline (Gantt Chart)")
@@ -278,8 +398,6 @@ elif nav_option == "💰 Financial EVM View":
 elif nav_option == "📝 Interactive Data Editor":
     st.subheader("Interactive Site Data Editor")
     st.caption("Edit progress or schedule dates directly in the grid below.")
-    
-    # Hide financial columns from Field Contractors
     if user_role == "👷 Field Supervisor / Contractor":
         field_cols = ['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Risk', 'Start Date', 'Forecast Finish']
         edited_df = st.data_editor(filtered_df[field_cols], num_rows="fixed", use_container_width=True)
