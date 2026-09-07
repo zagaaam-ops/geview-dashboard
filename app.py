@@ -336,9 +336,19 @@ if nav_option == "📊 Executive Analytics":
 
 elif nav_option == "🗺️ Site Map & GIS Coordinates":
     st.subheader("🗺️ Geographic Site Distribution Map")
+    
+    col_map_ctrl, col_map_space = st.columns([1, 2])
+    with col_map_ctrl:
+        map_style_choice = st.radio(
+            "Map Layer View Style:",
+            ["🌍 Topo High-Contrast (Light)", "🏙️ OpenStreetMap Satellite", "📌 Streamlit Native Map Grid"],
+            horizontal=True
+        )
+
     if 'lat' in filtered_df.columns and 'lon' in filtered_df.columns:
-        try:
-            # Fallback robust Plotly map renderer
+        if map_style_choice == "📌 Streamlit Native Map Grid":
+            st.map(filtered_df[['lat', 'lon']], zoom=4)
+        else:
             fig_map = px.scatter_geo(
                 filtered_df,
                 lat="lat",
@@ -351,11 +361,41 @@ elif nav_option == "🗺️ Site Map & GIS Coordinates":
                 center={"lat": 24.0, "lon": 45.0},
                 title="Active Telecom Sites Across Network"
             )
-            fig_map.update_geos(fitbounds="locations", visible=True, showcountries=True, bgcolor="#0b0f19")
-            fig_map.update_layout(template="plotly_dark", margin={"r":0,"t":40,"l":0,"b":0}, height=500)
+
+            if map_style_choice == "🌍 Topo High-Contrast (Light)":
+                fig_map.update_geos(
+                    fitbounds="locations",
+                    visible=True,
+                    showcountries=True,
+                    countrycolor="#475569",
+                    showcoastlines=True,
+                    coastlinecolor="#0284C7",
+                    showland=True,
+                    landcolor="#F1F5F9",
+                    showocean=True,
+                    oceancolor="#BAE6FD",
+                    showlakes=True,
+                    lakecolor="#7DD3FC",
+                    bgcolor="#0B0F19"
+                )
+                fig_map.update_layout(template="plotly_white", margin={"r":0,"t":40,"l":0,"b":0}, height=550)
+            else: # OpenStreetMap Satellite / Dark High Contrast
+                fig_map.update_geos(
+                    fitbounds="locations",
+                    visible=True,
+                    showcountries=True,
+                    countrycolor="#94A3B8",
+                    showcoastlines=True,
+                    coastlinecolor="#38BDF8",
+                    showland=True,
+                    landcolor="#1E293B",
+                    showocean=True,
+                    oceancolor="#0F172A",
+                    bgcolor="#0B0F19"
+                )
+                fig_map.update_layout(template="plotly_dark", margin={"r":0,"t":40,"l":0,"b":0}, height=550)
+
             st.plotly_chart(fig_map, use_container_width=True)
-        except Exception:
-            st.map(filtered_df[['lat', 'lon']])
     else:
         st.info("No lat/lon GPS coordinates found in dataset.")
 
