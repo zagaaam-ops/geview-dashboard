@@ -3,6 +3,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 st.set_page_config(
     page_title="God's Eye View - Telecom Build Dashboard",
@@ -34,7 +38,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# LOCAL DATA LOAD
+# DATA ENGINE
 # -----------------------------------------------------------------------------
 EXCEL_FILE = "Gods_Eye_View_Telecom_Dashboard.xlsx"
 
@@ -52,12 +56,10 @@ def load_data():
         ]
         df = pd.DataFrame(sites_data)
 
-    # Convert dates
     for col in ['Start Date', 'Baseline Finish', 'Forecast Finish']:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col])
 
-    # EVM & Schedule Variance Calculations
     df['Earned Value'] = df['Budget'] * df['Overall Progress']
     df['CPI'] = df.apply(lambda r: r['Earned Value'] / r['Actual'] if r['Actual'] > 0 else 1.0, axis=1)
     
@@ -69,9 +71,41 @@ def load_data():
 df = load_data()
 
 # -----------------------------------------------------------------------------
-# SIDEBAR FILTERS
+# EXCEL GENERATOR FUNCTION
 # -----------------------------------------------------------------------------
-st.sidebar.title("📡 Controls & Filters")
+def generate_excel_report(dataframe):
+    output = io.BytesIO()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Executive Summary"
+    
+    # Title Block
+    ws.merge_cells('A1:G1')
+    ws['A1'] = "TELECOM TOWER BUILD - EXECUTIVE REPORT"
+    ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+    ws['A1'].fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 35
+
+    # Write Data
+    for r in dataframe_to_rows(dataframe[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Budget', 'Actual', 'Risk']], index=False, header=True):
+        ws.append(r)
+
+    # Style Header
+    header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    for cell in ws[3]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    wb.save(output)
+    return output.getvalue()
+
+# -----------------------------------------------------------------------------
+# SIDEBAR FILTERS & EXPORTS
+# -----------------------------------------------------------------------------
+st.sidebar.title("📡 Controls & Exports")
 st.sidebar.markdown("---")
 
 regions = st.sidebar.multiselect("Filter Region:", options=df['Region'].unique(), default=df['Region'].unique())
@@ -83,6 +117,16 @@ filtered_df = df[
     (df['Contractor'].isin(contractors)) & 
     (df['Risk'].isin(risk_levels))
 ]
+
+st.sidebar.markdown("### 📥 Module 3: Executive Reporting")
+excel_data = generate_excel_report(filtered_df)
+st.sidebar.download_button(
+    label="📄 Download Executive Excel Report",
+    data=excel_data,
+    file_name="Executive_Telecom_Report.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True
+)
 
 # -----------------------------------------------------------------------------
 # EXECUTIVE KPIS
