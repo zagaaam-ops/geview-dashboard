@@ -34,6 +34,20 @@ st.markdown("""
             font-size: 1.8rem !important;
             font-weight: 700;
         }
+        .alert-box-critical {
+            background-color: #450A0A;
+            border-left: 5px solid #EF4444;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .alert-box-warning {
+            background-color: #451A03;
+            border-left: 5px solid #F97316;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -119,7 +133,7 @@ filtered_df = df[
     (df['Risk'].isin(risk_levels))
 ]
 
-st.sidebar.markdown("### 📥 Module 3: Executive Reporting")
+st.sidebar.markdown("### 📥 Executive Reporting")
 excel_data = generate_excel_report(filtered_df)
 st.sidebar.download_button(
     label="📄 Download Executive Excel Report",
@@ -152,12 +166,13 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # MODULE TABS
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Executive Analytics", 
     "📅 Schedule & Gantt Timeline", 
     "💰 Financial EVM View", 
     "📝 Interactive Data Editor",
-    "📸 Module 4: Site Photos & Docs"
+    "📸 Site Photos & Docs",
+    "🚨 Module 5: Automated Alerts"
 ])
 
 with tab1:
@@ -226,9 +241,6 @@ with tab4:
     st.caption("Edit values directly in the grid below to simulate scenario changes.")
     edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
 
-# -----------------------------------------------------------------------------
-# MODULE 4: PHOTO & DOCUMENT UPLOAD ENGINE
-# -----------------------------------------------------------------------------
 with tab5:
     st.subheader("📸 Field Inspection Photos & Milestone Documentation")
     
@@ -268,8 +280,51 @@ with tab5:
                 ext = file_name.split(".")[-1].lower()
                 
                 if ext in ["png", "jpg", "jpeg"]:
-                    st.image(file_path, caption=file_name, use_column_width=True)
+                    st.image(file_path, caption=file_name, use_container_width=True)
                 else:
                     st.info(f"📄 Document Attached: `{file_name}`")
         else:
             st.caption("No photos or documents uploaded yet for this site.")
+
+# -----------------------------------------------------------------------------
+# MODULE 5: AUTOMATED DELAY & BUDGET VARIANCE ALERTS
+# -----------------------------------------------------------------------------
+with tab6:
+    st.subheader("🚨 Automated Exception & Variance Monitoring Engine")
+    st.caption("Real-time risk detection for sites exceeding baseline timelines or financial thresholds.")
+
+    critical_delay_sites = filtered_df[filtered_df['Schedule Variance (Days)'] > 14]
+    cost_overrun_sites = filtered_df[filtered_df['CPI'] < 0.95]
+    critical_risk_sites = filtered_df[filtered_df['Risk'] == 'Critical']
+
+    c_alert1, c_alert2, c_alert3 = st.columns(3)
+    c_alert1.metric("CRITICAL SCHEDULE DELAYS (>14 Days)", len(critical_delay_sites))
+    c_alert2.metric("COST OVERRUN RISK (CPI < 0.95)", len(cost_overrun_sites))
+    c_alert3.metric("CRITICAL RISK SITES", len(critical_risk_sites))
+
+    st.markdown("### Active Priority Alerts")
+
+    if len(critical_delay_sites) > 0:
+        for _, site in critical_delay_sites.iterrows():
+            st.markdown(f"""
+            <div class="alert-box-critical">
+                <strong>🚨 CRITICAL SCHEDULE DELAY: {site['Site ID']} ({site['Name']})</strong><br/>
+                Contractor: {site['Contractor']} | Region: {site['Region']}<br/>
+                Baseline Finish: {site['Baseline Finish'].strftime('%Y-%m-%d')} | Forecast Finish: {site['Forecast Finish'].strftime('%Y-%m-%d')}<br/>
+                <strong>Projected Delay: +{site['Schedule Variance (Days)']} Days</strong>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical schedule delays (>14 days) detected.")
+
+    if len(cost_overrun_sites) > 0:
+        for _, site in cost_overrun_sites.iterrows():
+            st.markdown(f"""
+            <div class="alert-box-warning">
+                <strong>⚠️ FINANCIAL VARIANCE WARNING: {site['Site ID']} ({site['Name']})</strong><br/>
+                Contractor: {site['Contractor']} | Budget: ${site['Budget']:,.0f} | Actual: ${site['Actual']:,.0f}<br/>
+                <strong>CPI Metric: {site['CPI']:.2f} (Underperforming Earned Value)</strong>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("✅ All sites maintaining acceptable Cost Performance Index (CPI >= 0.95).")
