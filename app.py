@@ -337,21 +337,25 @@ if nav_option == "📊 Executive Analytics":
 elif nav_option == "🗺️ Site Map & GIS Coordinates":
     st.subheader("🗺️ Geographic Site Distribution Map")
     if 'lat' in filtered_df.columns and 'lon' in filtered_df.columns:
-        fig_map = px.scatter_mapbox(
-            filtered_df,
-            lat="lat",
-            lon="lon",
-            hover_name="Name",
-            hover_data=["Site ID", "Region", "Contractor", "Risk"],
-            color="Risk",
-            color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'},
-            size_max=15,
-            zoom=4.5,
-            mapbox_style="carto-darkmatter",
-            title="Active Telecom Sites Across Network"
-        )
-        fig_map.update_layout(margin={"r":0,"t":40,"l":0,"b":0}, height=500)
-        st.plotly_chart(fig_map, use_container_width=True)
+        try:
+            # Fallback robust Plotly map renderer
+            fig_map = px.scatter_geo(
+                filtered_df,
+                lat="lat",
+                lon="lon",
+                hover_name="Name",
+                hover_data=["Site ID", "Region", "Contractor", "Risk"],
+                color="Risk",
+                color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'},
+                scope="asia",
+                center={"lat": 24.0, "lon": 45.0},
+                title="Active Telecom Sites Across Network"
+            )
+            fig_map.update_geos(fitbounds="locations", visible=True, showcountries=True, bgcolor="#0b0f19")
+            fig_map.update_layout(template="plotly_dark", margin={"r":0,"t":40,"l":0,"b":0}, height=500)
+            st.plotly_chart(fig_map, use_container_width=True)
+        except Exception:
+            st.map(filtered_df[['lat', 'lon']])
     else:
         st.info("No lat/lon GPS coordinates found in dataset.")
 
