@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dark Theme & Styling
+# Dark Theme & Custom Alert CSS with High-Contrast Text
 st.markdown("""
     <style>
         .main { background-color: #0F172A; }
@@ -35,23 +35,31 @@ st.markdown("""
             font-weight: 700;
         }
         .alert-box-critical {
-            background-color: #450A0A;
-            border-left: 5px solid #EF4444;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
+            background-color: #7F1D1D !important;
+            color: #FFFFFF !important;
+            border-left: 6px solid #EF4444;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .alert-box-critical strong, .alert-box-critical span {
+            color: #FFFFFF !important;
         }
         .alert-box-warning {
-            background-color: #451A03;
-            border-left: 5px solid #F97316;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
+            background-color: #78350F !important;
+            color: #FFFFFF !important;
+            border-left: 6px solid #F59E0B;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .alert-box-warning strong, .alert-box-warning span {
+            color: #FFFFFF !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Create directory for uploaded site files
+# Upload directory setup
 UPLOAD_DIR = "uploaded_site_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -118,10 +126,25 @@ def generate_excel_report(dataframe):
     return output.getvalue()
 
 # -----------------------------------------------------------------------------
-# SIDEBAR FILTERS & EXPORTS
+# SIDEBAR NAVIGATION & FILTERS
 # -----------------------------------------------------------------------------
-st.sidebar.title("📡 Controls & Exports")
+st.sidebar.title("📡 PMIS Control Center")
+
+# Sidebar Navigation Tiles
+nav_option = st.sidebar.radio(
+    "Select Module:",
+    [
+        "📊 Executive Analytics",
+        "📅 Schedule & Gantt Timeline",
+        "💰 Financial EVM View",
+        "📝 Interactive Data Editor",
+        "📸 Site Photos & Docs",
+        "🚨 Automated Alerts Engine"
+    ]
+)
+
 st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Data Filters")
 
 regions = st.sidebar.multiselect("Filter Region:", options=df['Region'].unique(), default=df['Region'].unique())
 contractors = st.sidebar.multiselect("Filter Contractor:", options=df['Contractor'].unique(), default=df['Contractor'].unique())
@@ -133,10 +156,11 @@ filtered_df = df[
     (df['Risk'].isin(risk_levels))
 ]
 
-st.sidebar.markdown("### 📥 Executive Reporting")
+st.sidebar.markdown("---")
+st.sidebar.subheader("📥 Executive Exports")
 excel_data = generate_excel_report(filtered_df)
 st.sidebar.download_button(
-    label="📄 Download Executive Excel Report",
+    label="📄 Export Excel Summary",
     data=excel_data,
     file_name="Executive_Telecom_Report.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -144,7 +168,7 @@ st.sidebar.download_button(
 )
 
 # -----------------------------------------------------------------------------
-# EXECUTIVE KPIS
+# EXECUTIVE KPIS (HEADER)
 # -----------------------------------------------------------------------------
 st.title("📡 Telecom Tower Build: Executive God's Eye View")
 
@@ -164,18 +188,9 @@ c5.metric("COST PERF (CPI)", f"{avg_cpi:.2f}", delta="On Track" if avg_cpi >= 1 
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# MODULE TABS
+# MODULE ROUTING
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📊 Executive Analytics", 
-    "📅 Schedule & Gantt Timeline", 
-    "💰 Financial EVM View", 
-    "📝 Interactive Data Editor",
-    "📸 Site Photos & Docs",
-    "🚨 Module 5: Automated Alerts"
-])
-
-with tab1:
+if nav_option == "📊 Executive Analytics":
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Progress by Region")
@@ -196,7 +211,7 @@ with tab1:
         fig_contractor.update_layout(template="plotly_dark")
         st.plotly_chart(fig_contractor, use_container_width=True)
 
-with tab2:
+elif nav_option == "📅 Schedule & Gantt Timeline":
     st.subheader("Tower Rollout Timeline (Gantt Chart)")
     if 'Start Date' in filtered_df.columns and 'Forecast Finish' in filtered_df.columns:
         fig_gantt = px.timeline(
@@ -227,7 +242,7 @@ with tab2:
             hide_index=True
         )
 
-with tab3:
+elif nav_option == "💰 Financial EVM View":
     st.subheader("Earned Value Analysis (Budget vs Actual vs Earned Value)")
     fig_evm = go.Figure()
     fig_evm.add_trace(go.Bar(x=filtered_df['Site ID'], y=filtered_df['Budget'], name='Budget', marker_color='#64748B'))
@@ -236,12 +251,12 @@ with tab3:
     fig_evm.update_layout(barmode='group', template="plotly_dark", height=400)
     st.plotly_chart(fig_evm, use_container_width=True)
 
-with tab4:
+elif nav_option == "📝 Interactive Data Editor":
     st.subheader("Interactive Site Data Editor")
     st.caption("Edit values directly in the grid below to simulate scenario changes.")
     edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
 
-with tab5:
+elif nav_option == "📸 Site Photos & Docs":
     st.subheader("📸 Field Inspection Photos & Milestone Documentation")
     
     selected_site = st.selectbox(
@@ -286,10 +301,7 @@ with tab5:
         else:
             st.caption("No photos or documents uploaded yet for this site.")
 
-# -----------------------------------------------------------------------------
-# MODULE 5: AUTOMATED DELAY & BUDGET VARIANCE ALERTS
-# -----------------------------------------------------------------------------
-with tab6:
+elif nav_option == "🚨 Automated Alerts Engine":
     st.subheader("🚨 Automated Exception & Variance Monitoring Engine")
     st.caption("Real-time risk detection for sites exceeding baseline timelines or financial thresholds.")
 
@@ -308,10 +320,10 @@ with tab6:
         for _, site in critical_delay_sites.iterrows():
             st.markdown(f"""
             <div class="alert-box-critical">
-                <strong>🚨 CRITICAL SCHEDULE DELAY: {site['Site ID']} ({site['Name']})</strong><br/>
-                Contractor: {site['Contractor']} | Region: {site['Region']}<br/>
-                Baseline Finish: {site['Baseline Finish'].strftime('%Y-%m-%d')} | Forecast Finish: {site['Forecast Finish'].strftime('%Y-%m-%d')}<br/>
-                <strong>Projected Delay: +{site['Schedule Variance (Days)']} Days</strong>
+                <span style="font-size:1.1rem; font-weight:bold;">🚨 CRITICAL SCHEDULE DELAY: {site['Site ID']} ({site['Name']})</span><br/>
+                <span style="font-size:0.95rem;">Contractor: {site['Contractor']} | Region: {site['Region']}</span><br/>
+                <span style="font-size:0.95rem;">Baseline Finish: {site['Baseline Finish'].strftime('%Y-%m-%d')} | Forecast Finish: {site['Forecast Finish'].strftime('%Y-%m-%d')}</span><br/>
+                <span style="font-size:1.0rem; font-weight:bold;">Projected Delay: +{site['Schedule Variance (Days)']} Days</span>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -321,9 +333,9 @@ with tab6:
         for _, site in cost_overrun_sites.iterrows():
             st.markdown(f"""
             <div class="alert-box-warning">
-                <strong>⚠️ FINANCIAL VARIANCE WARNING: {site['Site ID']} ({site['Name']})</strong><br/>
-                Contractor: {site['Contractor']} | Budget: ${site['Budget']:,.0f} | Actual: ${site['Actual']:,.0f}<br/>
-                <strong>CPI Metric: {site['CPI']:.2f} (Underperforming Earned Value)</strong>
+                <span style="font-size:1.1rem; font-weight:bold;">⚠️ FINANCIAL VARIANCE WARNING: {site['Site ID']} ({site['Name']})</span><br/>
+                <span style="font-size:0.95rem;">Contractor: {site['Contractor']} | Budget: ${site['Budget']:,.0f} | Actual: ${site['Actual']:,.0f}</span><br/>
+                <span style="font-size:1.0rem; font-weight:bold;">CPI Metric: {site['CPI']:.2f} (Underperforming Earned Value)</span>
             </div>
             """, unsafe_allow_html=True)
     else:
