@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dark Theme & Custom Alert CSS with High-Contrast Text
+# Dark Theme & Custom Alert CSS
 st.markdown("""
     <style>
         .main { background-color: #0F172A; }
@@ -42,9 +42,6 @@ st.markdown("""
             border-radius: 8px;
             margin-bottom: 12px;
         }
-        .alert-box-critical strong, .alert-box-critical span {
-            color: #FFFFFF !important;
-        }
         .alert-box-warning {
             background-color: #78350F !important;
             color: #FFFFFF !important;
@@ -53,13 +50,9 @@ st.markdown("""
             border-radius: 8px;
             margin-bottom: 12px;
         }
-        .alert-box-warning strong, .alert-box-warning span {
-            color: #FFFFFF !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# Upload directory setup
 UPLOAD_DIR = "uploaded_site_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -97,7 +90,7 @@ def load_data():
 df = load_data()
 
 # -----------------------------------------------------------------------------
-# EXCEL GENERATOR FUNCTION
+# EXCEL GENERATOR
 # -----------------------------------------------------------------------------
 def generate_excel_report(dataframe):
     output = io.BytesIO()
@@ -126,14 +119,28 @@ def generate_excel_report(dataframe):
     return output.getvalue()
 
 # -----------------------------------------------------------------------------
-# SIDEBAR NAVIGATION & FILTERS
+# ROLE-BASED SIDEBAR NAVIGATION & FILTERS
 # -----------------------------------------------------------------------------
-st.sidebar.title("📡 PMIS Control Center")
+st.sidebar.title("👤 Role Security & PMIS Controls")
 
-# Sidebar Navigation Tiles
-nav_option = st.sidebar.radio(
-    "Select Module:",
-    [
+# Role Switcher
+user_role = st.sidebar.selectbox(
+    "Active Persona Role:",
+    ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"]
+)
+
+st.sidebar.markdown("---")
+
+# Dynamic Module Access Map based on Role
+if user_role == "👑 Executive / C-Suite":
+    available_modules = [
+        "📊 Executive Analytics",
+        "📅 Schedule & Gantt Timeline",
+        "💰 Financial EVM View",
+        "🚨 Automated Alerts Engine"
+    ]
+elif user_role == "👔 Regional Project Manager":
+    available_modules = [
         "📊 Executive Analytics",
         "📅 Schedule & Gantt Timeline",
         "💰 Financial EVM View",
@@ -141,7 +148,14 @@ nav_option = st.sidebar.radio(
         "📸 Site Photos & Docs",
         "🚨 Automated Alerts Engine"
     ]
-)
+else: # Field Supervisor / Contractor
+    available_modules = [
+        "📸 Site Photos & Docs",
+        "📝 Interactive Data Editor",
+        "📅 Schedule & Gantt Timeline"
+    ]
+
+nav_option = st.sidebar.radio("Select Module:", available_modules)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Data Filters")
@@ -156,21 +170,24 @@ filtered_df = df[
     (df['Risk'].isin(risk_levels))
 ]
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("📥 Executive Exports")
-excel_data = generate_excel_report(filtered_df)
-st.sidebar.download_button(
-    label="📄 Export Excel Summary",
-    data=excel_data,
-    file_name="Executive_Telecom_Report.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    use_container_width=True
-)
+# Only Executive and PM roles get report export capability
+if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📥 Executive Exports")
+    excel_data = generate_excel_report(filtered_df)
+    st.sidebar.download_button(
+        label="📄 Export Excel Summary",
+        data=excel_data,
+        file_name="Executive_Telecom_Report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
 
 # -----------------------------------------------------------------------------
-# EXECUTIVE KPIS (HEADER)
+# HEADER & KPIS
 # -----------------------------------------------------------------------------
 st.title("📡 Telecom Tower Build: Executive God's Eye View")
+st.caption(f"Logged in as: **{user_role}**")
 
 total_sites = len(filtered_df)
 avg_progress = filtered_df['Overall Progress'].mean() if total_sites > 0 else 0
@@ -178,12 +195,19 @@ total_budget = filtered_df['Budget'].sum()
 total_actual = filtered_df['Actual'].sum()
 avg_cpi = filtered_df['CPI'].mean() if total_sites > 0 else 1.0
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("TOTAL SITES", total_sites)
-c2.metric("AVG PROGRESS", f"{avg_progress * 100:.1f}%")
-c3.metric("TOTAL BUDGET", f"${total_budget:,.0f}")
-c4.metric("ACTUAL SPEND", f"${total_actual:,.0f}")
-c5.metric("COST PERF (CPI)", f"{avg_cpi:.2f}", delta="On Track" if avg_cpi >= 1 else "Over Budget", delta_color="normal" if avg_cpi >= 1 else "inverse")
+# Mask financial metrics for Field Contractors
+if user_role == "👷 Field Supervisor / Contractor":
+    c1, c2, c3 = st.columns(3)
+    c1.metric("TOTAL SITES", total_sites)
+    c2.metric("AVG PROGRESS", f"{avg_progress * 100:.1f}%")
+    c3.metric("ACTIVE REGIONS", len(filtered_df['Region'].unique()))
+else:
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("TOTAL SITES", total_sites)
+    c2.metric("AVG PROGRESS", f"{avg_progress * 100:.1f}%")
+    c3.metric("TOTAL BUDGET", f"${total_budget:,.0f}")
+    c4.metric("ACTUAL SPEND", f"${total_actual:,.0f}")
+    c5.metric("COST PERF (CPI)", f"{avg_cpi:.2f}", delta="On Track" if avg_cpi >= 1 else "Over Budget", delta_color="normal" if avg_cpi >= 1 else "inverse")
 
 st.markdown("---")
 
@@ -253,8 +277,14 @@ elif nav_option == "💰 Financial EVM View":
 
 elif nav_option == "📝 Interactive Data Editor":
     st.subheader("Interactive Site Data Editor")
-    st.caption("Edit values directly in the grid below to simulate scenario changes.")
-    edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
+    st.caption("Edit progress or schedule dates directly in the grid below.")
+    
+    # Hide financial columns from Field Contractors
+    if user_role == "👷 Field Supervisor / Contractor":
+        field_cols = ['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Risk', 'Start Date', 'Forecast Finish']
+        edited_df = st.data_editor(filtered_df[field_cols], num_rows="fixed", use_container_width=True)
+    else:
+        edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
 
 elif nav_option == "📸 Site Photos & Docs":
     st.subheader("📸 Field Inspection Photos & Milestone Documentation")
