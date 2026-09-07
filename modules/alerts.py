@@ -1,20 +1,50 @@
 import streamlit as st
 import os
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 def send_webhook_alert(message):
     webhook_url = os.getenv("ALERT_WEBHOOK_URL")
     if not webhook_url:
-        st.info("ℹ️ Webhook URL not configured in environment variables (ALERT_WEBHOOK_URL). Showing simulated alert.")
-        return True
+        return False, "ALERT_WEBHOOK_URL environment variable is not configured."
     
-    # Send live notification via requests
     try:
-        import requests
-        response = requests.post(webhook_url, json={"text": message})
-        return response.status_code == 200
+        # Standard JSON payload works for Slack, Discord, and Teams (using adaptive card/simple text)
+        payload = {"text": message}
+        response = requests.post(webhook_url, json=payload, timeout=5)
+        if response.status_code in [200, 201, 204]:
+            return True, "Webhook alert successfully sent!"
+        else:
+            return False, f"Webhook server returned status code: {response.status_code}"
     except Exception as e:
-        st.error(f"Webhook dispatch failed: {e}")
-        return False
+        return False, f"Webhook request failed: {str(e)}"
+
+def send_email_alert(subject, body_text, recipient_email):
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+
+    if not smtp_user or not smtp_password:
+        return False, "SMTP credentials (SMTP_USER / SMTP_PASSWORD) are not configured."
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = recipient_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body_text, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True, f"Email notification sent to {recipient_email}"
+    except Exception as e:
+        return False, f"Email dispatch failed: {str(e)}"
 
 def render_alerts_module(df):
     st.subheader("🚨 Automated Exception & Variance Monitoring Engine")
@@ -30,12 +60,41 @@ def render_alerts_module(df):
     c_alert3.metric("CRITICAL RISK SITES", len(critical_risk_sites))
 
     st.markdown("---")
-    st.markdown("### Automated Alert Dispatcher")
-    
-    if st.button("📢 Dispatch Critical Risk Summary via Webhook / Email Alert"):
-        summary_msg = f"📡 PROJECT PLUS ALERT: {len(critical_delay_sites)} critical delayed sites and {len(critical_risk_sites)} critical risk sites detected."
-        if send_webhook_alert(summary_msg):
-            st.success("✅ Risk alert successfully dispatched to project managers!")
+    st.markdown("### 📢 Stakeholder Alert Dispatcher")
+
+    tab_webhook, tab_email = st.tabs(["💬 Webhook Alert (Slack / Teams)", "📧 Email Notification"])
+
+    with tab_webhook:
+        st.write("Send instant alerts directly to project management chat channels.")
+        if st.button("🚀 Dispatch Webhook Alert"):
+
+http://googleusercontent.com/map_location_reference/1
+            summary_msg = f"🗼 PROJECT PLUS ALERT: {len(critical_delay_sites)} critically delayed site(s) and {len(cost_overrun_sites)} cost overrun risk site(s) detected across [Riyadh](http://googleusercontent.com/map_location_reference/0) and regional hubs."
+            success, msg = send_webhook_alert(summary_msg)
+            if success:
+                st.success(f"✅ {msg}")
+            else:
+                st.warning(f"⚠️ {msg} (Simulated Dispatch Executed)")
+
+    with tab_email:
+        st.write("Send a formal variance report email to regional management.")
+        recipient = st.text_input("Recipient Email Address:", value="pm.regional@telecom.com")
+        
+        if st.button("📧 Send Email Summary Report"):
+            subject = f"🗼 PROJECT PLUS EXCEPTION REPORT: {len(critical_delay_sites)} Critical Delays"
+            body = f"""PROJECT PLUS TELECOM PMIS - AUTOMATED VARIANCE REPORT
+
+Critical Schedule Delays (>14 Days): {len(critical_delay_sites)}
+Financial Cost Overrun Risk (CPI < 0.95): {len(cost_overrun_sites)}
+Critical Risk Sites: {len(critical_risk_sites)}
+
+Please log in to the Project Plus PMIS Dashboard to review risk mitigation strategies.
+"""
+            success, msg = send_email_alert(subject, body, recipient)
+            if success:
+                st.success(f"✅ {msg}")
+            else:
+                st.info(f"ℹ️ {msg}")
 
     st.markdown("---")
     st.markdown("### Active Priority Alerts")
