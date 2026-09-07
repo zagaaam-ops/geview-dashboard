@@ -16,6 +16,7 @@ from modules.editor import render_editor_module
 from modules.docs import render_docs_module
 from modules.alerts import render_alerts_module
 from modules.db import get_db_engine, init_db, load_data_from_db, save_data_to_db
+from modules.pdf_report import generate_pdf_report
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
@@ -185,12 +186,22 @@ filtered_df = df[(df['Region'].isin(regions)) & (df['Contractor'].isin(contracto
 if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
     st.sidebar.markdown("---")
     st.sidebar.subheader("📥 Executive Exports")
+    
     excel_data = generate_excel_report(filtered_df)
     st.sidebar.download_button(
         label="📄 Export Excel Summary",
         data=excel_data,
         file_name="Executive_Telecom_Report.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    pdf_data = generate_pdf_report(filtered_df)
+    st.sidebar.download_button(
+        label="📊 Export PDF Executive Report",
+        data=pdf_data,
+        file_name="Executive_Status_Report.pdf",
+        mime="application/pdf",
         use_container_width=True
     )
 
@@ -232,18 +243,6 @@ elif nav_option == "💰 Financial EVM View":
     render_evm_module(filtered_df)
 elif nav_option == "📝 Interactive Data Editor":
     edited_df = render_editor_module(filtered_df, user_role)
-    if st.button("💾 Save Grid Changes to Database"):
-        if db_engine:
-            if save_data_to_db(db_engine, edited_df):
-                st.success("Changes saved successfully to Cloud Database!")
-                st.cache_data.clear()
-            else:
-                st.error("Failed to save to database.")
-        else:
-            edited_df.to_excel(EXCEL_FILE, index=False)
-            st.success("Changes saved to local Excel storage!")
-            st.cache_data.clear()
-
 elif nav_option == "📸 Site Photos & Docs":
     render_docs_module(filtered_df, UPLOAD_DIR)
 elif nav_option == "🚨 Automated Alerts Engine":
