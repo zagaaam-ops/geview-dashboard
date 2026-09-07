@@ -6,7 +6,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Import All Modular Components
+# Import Modular Components
 from modules.gis_map import render_gis_map
 from modules.acceptance import render_acceptance_module
 from modules.analytics import render_analytics_module
@@ -15,6 +15,7 @@ from modules.evm import render_evm_module
 from modules.editor import render_editor_module
 from modules.docs import render_docs_module
 from modules.alerts import render_alerts_module
+from modules.db import get_db_engine, init_db, load_data_from_db, save_data_to_db
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
@@ -84,19 +85,33 @@ UPLOAD_DIR = "uploaded_site_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 EXCEL_FILE = "Gods_Eye_View_Telecom_Dashboard.xlsx"
 
+# Setup DB Engine
+db_engine = get_db_engine()
+
+def get_default_df():
+    sites_data = [
+        {"Site ID": "ST-1001", "Name": "Riyadh Macro Hub", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low", "Start Date": "2026-01-01", "Baseline Finish": "2026-02-15", "Forecast Finish": "2026-02-10", "lat": 24.7136, "lon": 46.6753},
+        {"Site ID": "ST-1002", "Name": "Jeddah Port Tower", "Region": "West", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low", "Start Date": "2026-01-10", "Baseline Finish": "2026-02-28", "Forecast Finish": "2026-02-25", "lat": 21.5433, "lon": 39.1728},
+        {"Site ID": "ST-1003", "Name": "Dammam Industrial", "Region": "East", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium", "Start Date": "2026-02-01", "Baseline Finish": "2026-04-15", "Forecast Finish": "2026-04-30", "lat": 26.4207, "lon": 50.0888},
+        {"Site ID": "ST-1004", "Name": "Madinah Central", "Region": "West", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical", "Start Date": "2026-02-15", "Baseline Finish": "2026-05-10", "Forecast Finish": "2026-06-15", "lat": 24.5247, "lon": 39.5692},
+        {"Site ID": "ST-1005", "Name": "Abha South Lattice", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium", "Start Date": "2026-03-01", "Baseline Finish": "2026-05-30", "Forecast Finish": "2026-06-10", "lat": 18.2164, "lon": 42.5053}
+    ]
+    return pd.DataFrame(sites_data)
+
+if db_engine:
+    init_db(db_engine, get_default_df())
+
 @st.cache_data(ttl=5)
 def load_data():
-    if os.path.exists(EXCEL_FILE):
+    if db_engine:
+        try:
+            df = load_data_from_db(db_engine)
+        except Exception:
+            df = get_default_df()
+    elif os.path.exists(EXCEL_FILE):
         df = pd.read_excel(EXCEL_FILE)
     else:
-        sites_data = [
-            {"Site ID": "ST-1001", "Name": "Riyadh Macro Hub", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low", "Start Date": "2026-01-01", "Baseline Finish": "2026-02-15", "Forecast Finish": "2026-02-10", "lat": 24.7136, "lon": 46.6753},
-            {"Site ID": "ST-1002", "Name": "Jeddah Port Tower", "Region": "West", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low", "Start Date": "2026-01-10", "Baseline Finish": "2026-02-28", "Forecast Finish": "2026-02-25", "lat": 21.5433, "lon": 39.1728},
-            {"Site ID": "ST-1003", "Name": "Dammam Industrial", "Region": "East", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium", "Start Date": "2026-02-01", "Baseline Finish": "2026-04-15", "Forecast Finish": "2026-04-30", "lat": 26.4207, "lon": 50.0888},
-            {"Site ID": "ST-1004", "Name": "Madinah Central", "Region": "West", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical", "Start Date": "2026-02-15", "Baseline Finish": "2026-05-10", "Forecast Finish": "2026-06-15", "lat": 24.5247, "lon": 39.5692},
-            {"Site ID": "ST-1005", "Name": "Abha South Lattice", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium", "Start Date": "2026-03-01", "Baseline Finish": "2026-05-30", "Forecast Finish": "2026-06-10", "lat": 18.2164, "lon": 42.5053}
-        ]
-        df = pd.DataFrame(sites_data)
+        df = get_default_df()
 
     for col in ['Start Date', 'Baseline Finish', 'Forecast Finish']:
         if col in df.columns:
@@ -141,6 +156,12 @@ def generate_excel_report(dataframe):
 
 # Sidebar Controls
 st.sidebar.title("📡 Project Plus Controls")
+
+if db_engine:
+    st.sidebar.caption("🟢 **Cloud Database:** Connected")
+else:
+    st.sidebar.caption("🟡 **Storage Mode:** Local Fallback")
+
 user_role = st.sidebar.selectbox("Active Persona Role:", ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"])
 st.sidebar.markdown("---")
 
@@ -198,7 +219,7 @@ else:
 
 st.markdown("---")
 
-# Clean Router Invocation
+# Navigation Routing
 if nav_option == "📊 Executive Analytics":
     render_analytics_module(filtered_df)
 elif nav_option == "🗺️ Site Map & GIS Coordinates":
@@ -210,7 +231,19 @@ elif nav_option == "📅 Schedule & Gantt Timeline":
 elif nav_option == "💰 Financial EVM View":
     render_evm_module(filtered_df)
 elif nav_option == "📝 Interactive Data Editor":
-    render_editor_module(filtered_df, user_role)
+    edited_df = render_editor_module(filtered_df, user_role)
+    if st.button("💾 Save Grid Changes to Database"):
+        if db_engine:
+            if save_data_to_db(db_engine, edited_df):
+                st.success("Changes saved successfully to Cloud Database!")
+                st.cache_data.clear()
+            else:
+                st.error("Failed to save to database.")
+        else:
+            edited_df.to_excel(EXCEL_FILE, index=False)
+            st.success("Changes saved to local Excel storage!")
+            st.cache_data.clear()
+
 elif nav_option == "📸 Site Photos & Docs":
     render_docs_module(filtered_df, UPLOAD_DIR)
 elif nav_option == "🚨 Automated Alerts Engine":

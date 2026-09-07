@@ -1,8 +1,24 @@
 import streamlit as st
+import os
+
+def send_webhook_alert(message):
+    webhook_url = os.getenv("ALERT_WEBHOOK_URL")
+    if not webhook_url:
+        st.info("ℹ️ Webhook URL not configured in environment variables (ALERT_WEBHOOK_URL). Showing simulated alert.")
+        return True
+    
+    # Send live notification via requests
+    try:
+        import requests
+        response = requests.post(webhook_url, json={"text": message})
+        return response.status_code == 200
+    except Exception as e:
+        st.error(f"Webhook dispatch failed: {e}")
+        return False
 
 def render_alerts_module(df):
     st.subheader("🚨 Automated Exception & Variance Monitoring Engine")
-    st.caption("Real-time risk detection for sites exceeding baseline timelines or financial thresholds.")
+    st.caption("Real-time risk detection and automated notification dispatch for critical site delays.")
 
     critical_delay_sites = df[df['Schedule Variance (Days)'] > 14]
     cost_overrun_sites = df[df['CPI'] < 0.95]
@@ -13,6 +29,15 @@ def render_alerts_module(df):
     c_alert2.metric("COST OVERRUN RISK (CPI < 0.95)", len(cost_overrun_sites))
     c_alert3.metric("CRITICAL RISK SITES", len(critical_risk_sites))
 
+    st.markdown("---")
+    st.markdown("### Automated Alert Dispatcher")
+    
+    if st.button("📢 Dispatch Critical Risk Summary via Webhook / Email Alert"):
+        summary_msg = f"📡 PROJECT PLUS ALERT: {len(critical_delay_sites)} critical delayed sites and {len(critical_risk_sites)} critical risk sites detected."
+        if send_webhook_alert(summary_msg):
+            st.success("✅ Risk alert successfully dispatched to project managers!")
+
+    st.markdown("---")
     st.markdown("### Active Priority Alerts")
 
     if len(critical_delay_sites) > 0:

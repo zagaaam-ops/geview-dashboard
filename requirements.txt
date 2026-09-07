@@ -5,3 +5,5 @@ openpyxl
 streamlit-folium
 folium
 reportlab
+psycopg2-binary
+sqlalchemy
