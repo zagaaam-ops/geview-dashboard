@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dark Theme & Metric Cards Styling
+# Dark Theme & Styling
 st.markdown("""
     <style>
         .main { background-color: #0F172A; }
@@ -34,27 +34,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# DATA LOAD & REFRESH ENGINE
+# LOCAL DATA LOAD
 # -----------------------------------------------------------------------------
 EXCEL_FILE = "Gods_Eye_View_Telecom_Dashboard.xlsx"
 
-@st.cache_data(ttl=10) # Refreshes every 10 seconds if Excel changes
+@st.cache_data(ttl=5)
 def load_data():
     if os.path.exists(EXCEL_FILE):
         df = pd.read_excel(EXCEL_FILE)
     else:
         sites_data = [
-            {"Site ID": "ST-1001", "Name": "Downtown Macro", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low"},
-            {"Site ID": "ST-1002", "Name": "North Hill Rooftop", "Region": "North", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low"},
-            {"Site ID": "ST-1003", "Name": "West Highway Lattice", "Region": "West", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium"},
-            {"Site ID": "ST-1004", "Name": "East Port Guyed", "Region": "East", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical"},
-            {"Site ID": "ST-1005", "Name": "South Valley Monopole", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium"}
+            {"Site ID": "ST-1001", "Name": "Downtown Macro", "Region": "Central", "Contractor": "Apex Telecom", "Overall Progress": 1.0, "Budget": 45000, "Actual": 44000, "Risk": "Low", "Start Date": "2026-01-01", "Baseline Finish": "2026-02-15", "Forecast Finish": "2026-02-10"},
+            {"Site ID": "ST-1002", "Name": "North Hill Rooftop", "Region": "North", "Contractor": "Vanguard Infra", "Overall Progress": 1.0, "Budget": 35000, "Actual": 34500, "Risk": "Low", "Start Date": "2026-01-10", "Baseline Finish": "2026-02-28", "Forecast Finish": "2026-02-25"},
+            {"Site ID": "ST-1003", "Name": "West Highway Lattice", "Region": "West", "Contractor": "Apex Telecom", "Overall Progress": 0.82, "Budget": 65000, "Actual": 58000, "Risk": "Medium", "Start Date": "2026-02-01", "Baseline Finish": "2026-04-15", "Forecast Finish": "2026-04-30"},
+            {"Site ID": "ST-1004", "Name": "East Port Guyed", "Region": "East", "Contractor": "Titan Build", "Overall Progress": 0.625, "Budget": 85000, "Actual": 52000, "Risk": "Critical", "Start Date": "2026-02-15", "Baseline Finish": "2026-05-10", "Forecast Finish": "2026-06-15"},
+            {"Site ID": "ST-1005", "Name": "South Valley Monopole", "Region": "South", "Contractor": "Vanguard Infra", "Overall Progress": 0.47, "Budget": 55000, "Actual": 38000, "Risk": "Medium", "Start Date": "2026-03-01", "Baseline Finish": "2026-05-30", "Forecast Finish": "2026-06-10"}
         ]
         df = pd.DataFrame(sites_data)
 
-    # EVM Metrics Calculations
+    # Convert dates
+    for col in ['Start Date', 'Baseline Finish', 'Forecast Finish']:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col])
+
+    # EVM & Schedule Variance Calculations
     df['Earned Value'] = df['Budget'] * df['Overall Progress']
     df['CPI'] = df.apply(lambda r: r['Earned Value'] / r['Actual'] if r['Actual'] > 0 else 1.0, axis=1)
+    
+    if 'Baseline Finish' in df.columns and 'Forecast Finish' in df.columns:
+        df['Schedule Variance (Days)'] = (df['Forecast Finish'] - df['Baseline Finish']).dt.days
+
     return df
 
 df = load_data()
@@ -62,7 +71,7 @@ df = load_data()
 # -----------------------------------------------------------------------------
 # SIDEBAR FILTERS
 # -----------------------------------------------------------------------------
-st.sidebar.title("📡 Navigation & Filters")
+st.sidebar.title("📡 Controls & Filters")
 st.sidebar.markdown("---")
 
 regions = st.sidebar.multiselect("Filter Region:", options=df['Region'].unique(), default=df['Region'].unique())
@@ -75,12 +84,8 @@ filtered_df = df[
     (df['Risk'].isin(risk_levels))
 ]
 
-if st.sidebar.button("🔄 Reload Excel File"):
-    st.cache_data.clear()
-    st.rerun()
-
 # -----------------------------------------------------------------------------
-# HEADER & KPIS
+# EXECUTIVE KPIS
 # -----------------------------------------------------------------------------
 st.title("📡 Telecom Tower Build: Executive God's Eye View")
 
@@ -100,13 +105,12 @@ c5.metric("COST PERF (CPI)", f"{avg_cpi:.2f}", delta="On Track" if avg_cpi >= 1 
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# ANALYTICS & TABLES
+# MODULE TABS
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(["📊 Executive Analytics", "🏗️ Site Master Data", "💰 Financial EVM View"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Executive Analytics", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor"])
 
 with tab1:
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Progress by Region")
         fig_reg = px.bar(
@@ -127,20 +131,35 @@ with tab1:
         st.plotly_chart(fig_contractor, use_container_width=True)
 
 with tab2:
-    st.subheader("Site Master Record")
-    st.dataframe(
-        filtered_df[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Risk']],
-        column_config={
-            "Overall Progress": st.column_config.ProgressColumn(
-                "Overall Completion",
-                format="%.0f%%",
-                min_value=0.0,
-                max_value=1.0,
-            )
-        },
-        use_container_width=True,
-        hide_index=True
-    )
+    st.subheader("Tower Rollout Timeline (Gantt Chart)")
+    if 'Start Date' in filtered_df.columns and 'Forecast Finish' in filtered_df.columns:
+        fig_gantt = px.timeline(
+            filtered_df, 
+            x_start="Start Date", 
+            x_end="Forecast Finish", 
+            y="Site ID", 
+            color="Risk",
+            hover_name="Name",
+            color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'},
+            title="Schedule Overview (Start to Forecast Finish)"
+        )
+        fig_gantt.update_yaxes(autorange="reversed")
+        fig_gantt.update_layout(template="plotly_dark", height=400)
+        st.plotly_chart(fig_gantt, use_container_width=True)
+
+        st.markdown("### Schedule Variance Analysis")
+        st.dataframe(
+            filtered_df[['Site ID', 'Name', 'Contractor', 'Baseline Finish', 'Forecast Finish', 'Schedule Variance (Days)', 'Risk']],
+            column_config={
+                "Schedule Variance (Days)": st.column_config.NumberColumn(
+                    "Delay (Days)",
+                    help="Positive numbers indicate delay beyond baseline target.",
+                    format="%d days"
+                )
+            },
+            use_container_width=True,
+            hide_index=True
+        )
 
 with tab3:
     st.subheader("Earned Value Analysis (Budget vs Actual vs Earned Value)")
@@ -150,3 +169,8 @@ with tab3:
     fig_evm.add_trace(go.Bar(x=filtered_df['Site ID'], y=filtered_df['Earned Value'], name='Earned Value', marker_color='#10B981'))
     fig_evm.update_layout(barmode='group', template="plotly_dark", height=400)
     st.plotly_chart(fig_evm, use_container_width=True)
+
+with tab4:
+    st.subheader("Interactive Site Data Editor")
+    st.caption("Edit values directly in the grid below to simulate scenario changes.")
+    edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
