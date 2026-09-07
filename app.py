@@ -37,6 +37,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Create directory for uploaded site files
+UPLOAD_DIR = "uploaded_site_docs"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # -----------------------------------------------------------------------------
 # DATA ENGINE
 # -----------------------------------------------------------------------------
@@ -79,7 +83,6 @@ def generate_excel_report(dataframe):
     ws = wb.active
     ws.title = "Executive Summary"
     
-    # Title Block
     ws.merge_cells('A1:G1')
     ws['A1'] = "TELECOM TOWER BUILD - EXECUTIVE REPORT"
     ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
@@ -87,11 +90,9 @@ def generate_excel_report(dataframe):
     ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 35
 
-    # Write Data
     for r in dataframe_to_rows(dataframe[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Budget', 'Actual', 'Risk']], index=False, header=True):
         ws.append(r)
 
-    # Style Header
     header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     for cell in ws[3]:
@@ -151,7 +152,13 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # MODULE TABS
 # -----------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Executive Analytics", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📊 Executive Analytics", 
+    "📅 Schedule & Gantt Timeline", 
+    "💰 Financial EVM View", 
+    "📝 Interactive Data Editor",
+    "📸 Module 4: Site Photos & Docs"
+])
 
 with tab1:
     col1, col2 = st.columns(2)
@@ -218,3 +225,51 @@ with tab4:
     st.subheader("Interactive Site Data Editor")
     st.caption("Edit values directly in the grid below to simulate scenario changes.")
     edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
+
+# -----------------------------------------------------------------------------
+# MODULE 4: PHOTO & DOCUMENT UPLOAD ENGINE
+# -----------------------------------------------------------------------------
+with tab5:
+    st.subheader("📸 Field Inspection Photos & Milestone Documentation")
+    
+    selected_site = st.selectbox(
+        "Select Target Site:", 
+        options=filtered_df['Site ID'] + " - " + filtered_df['Name']
+    )
+    
+    site_id = selected_site.split(" - ")[0]
+    site_folder = os.path.join(UPLOAD_DIR, site_id)
+    os.makedirs(site_folder, exist_ok=True)
+
+    col_upload, col_gallery = st.columns([1, 2])
+
+    with col_upload:
+        st.markdown(f"#### Upload Files for `{site_id}`")
+        uploaded_files = st.file_uploader(
+            "Choose Inspection Images or PDFs", 
+            type=["png", "jpg", "jpeg", "pdf"], 
+            accept_multiple_files=True
+        )
+        
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join(site_folder, uploaded_file.name)
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+            st.success(f"Successfully saved {len(uploaded_files)} file(s) for {site_id}!")
+
+    with col_gallery:
+        st.markdown(f"#### Uploaded Document Gallery (`{site_id}`)")
+        files_in_folder = os.listdir(site_folder)
+        
+        if files_in_folder:
+            for file_name in files_in_folder:
+                file_path = os.path.join(site_folder, file_name)
+                ext = file_name.split(".")[-1].lower()
+                
+                if ext in ["png", "jpg", "jpeg"]:
+                    st.image(file_path, caption=file_name, use_column_width=True)
+                else:
+                    st.info(f"📄 Document Attached: `{file_name}`")
+        else:
+            st.caption("No photos or documents uploaded yet for this site.")
