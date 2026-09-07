@@ -8,8 +8,9 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Import Custom Sub-Module
+# Import Modular Components
 from modules.gis_map import render_gis_map
+from modules.acceptance import render_acceptance_module
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
@@ -52,8 +53,6 @@ st.markdown("""
         div[data-testid="stMetric"] { background-color: #1E293B !important; border-radius: 10px; padding: 15px; border: 1px solid #334155; }
         div[data-testid="stMetric"] label { color: #94A3B8 !important; font-size: 0.85rem !important; font-weight: 600; }
         div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #38BDF8 !important; font-size: 1.8rem !important; font-weight: 700; }
-        .alert-box-critical { background-color: #7F1D1D !important; color: #FFFFFF !important; border-left: 6px solid #EF4444; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
-        .alert-box-warning { background-color: #78350F !important; color: #FFFFFF !important; border-left: 6px solid #F59E0B; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
     </style>
 
     <div id="preloader">
@@ -107,17 +106,17 @@ def load_data():
 
 df = load_data()
 
-# Sidebar Navigation
+# Sidebar Control Center
 st.sidebar.title("📡 Project Plus Controls")
 user_role = st.sidebar.selectbox("Active Persona Role:", ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"])
 st.sidebar.markdown("---")
 
 if user_role == "👑 Executive / C-Suite":
-    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View"]
 elif user_role == "👔 Regional Project Manager":
-    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📝 Interactive Data Editor", "📸 Site Photos & Docs"]
 else:
-    available_modules = ["🗺️ Site Map & GIS Coordinates", "📸 Site Photos & Docs", "📝 Interactive Data Editor", "📅 Schedule & Gantt Timeline"]
+    available_modules = ["📋 Digital PAT/FAC Acceptance", "📸 Site Photos & Docs", "📝 Interactive Data Editor", "🗺️ Site Map & GIS Coordinates"]
 
 nav_option = st.sidebar.radio("Select Module:", available_modules)
 
@@ -154,8 +153,11 @@ else:
 
 st.markdown("---")
 
-# Routing to Modular GIS Map
-if nav_option == "🗺️ Site Map & GIS Coordinates":
+# Module Routing
+if nav_option == "📋 Digital PAT/FAC Acceptance":
+    render_acceptance_module(filtered_df)
+
+elif nav_option == "🗺️ Site Map & GIS Coordinates":
     render_gis_map(filtered_df)
 
 elif nav_option == "📊 Executive Analytics":
@@ -197,6 +199,3 @@ elif nav_option == "📸 Site Photos & Docs":
             with open(os.path.join(site_folder, f.name), "wb") as out:
                 out.write(f.getbuffer())
         st.success("Files saved!")
-
-elif nav_option == "🚨 Automated Alerts Engine":
-    st.write("Alerts Engine Active.")
