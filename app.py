@@ -19,7 +19,7 @@ from modules.db import get_db_engine, init_db, load_data_from_db, save_data_to_d
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
-    page_icon="📡",
+    page_icon="🗼",
     layout="wide"
 )
 
@@ -155,7 +155,7 @@ def generate_excel_report(dataframe):
     return output.getvalue()
 
 # Sidebar Controls
-st.sidebar.title("📡 Project Plus Controls")
+st.sidebar.title("🗼 Project Plus Controls")
 
 if db_engine:
     st.sidebar.caption("🟢 **Cloud Database:** Connected")
