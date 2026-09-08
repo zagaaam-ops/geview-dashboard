@@ -1,33 +1,53 @@
 import streamlit as st
 import plotly.express as px
+import pandas as pd
 
 def render_gantt_module(df):
-    st.subheader("📅 Tower Rollout Timeline (Gantt Chart)")
-    if 'Start Date' in df.columns and 'Forecast Finish' in df.columns:
-        fig_gantt = px.timeline(
-            df, 
-            x_start="Start Date", 
-            x_end="Forecast Finish", 
-            y="Site ID", 
-            color="Risk",
-            hover_name="Name",
-            color_discrete_map={'Low': '#22C55E', 'Medium': '#EAB308', 'Critical': '#EF4444'},
-            title="Schedule Overview (Start to Forecast Finish)"
-        )
-        fig_gantt.update_yaxes(autorange="reversed")
-        fig_gantt.update_layout(template="plotly_dark", height=400)
-        st.plotly_chart(fig_gantt, use_container_width=True)
+    st.subheader("📅 Interactive Schedule Timeline & Milestone Gantt")
+    st.caption("Track baseline vs. forecast completion dates and monitor milestone progress across regions.")
 
-        st.markdown("### Schedule Variance Analysis")
-        st.dataframe(
-            df[['Site ID', 'Name', 'Contractor', 'Baseline Finish', 'Forecast Finish', 'Schedule Variance (Days)', 'Risk']],
-            column_config={
-                "Schedule Variance (Days)": st.column_config.NumberColumn(
-                    "Delay (Days)",
-                    help="Positive numbers indicate delay beyond baseline target.",
-                    format="%d days"
-                )
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+    if df.empty:
+        st.warning("No site data available for Gantt chart rendering.")
+        return
+
+    gantt_df = df.copy()
+    gantt_df['Start Date'] = pd.to_datetime(gantt_df['Start Date'])
+    gantt_df['Forecast Finish'] = pd.to_datetime(gantt_df['Forecast Finish'])
+
+    # Create Plotly Timeline
+    fig = px.timeline(
+        gantt_df,
+        x_start="Start Date",
+        x_end="Forecast Finish",
+        y="Site ID",
+        color="Risk",
+        hover_name="Name",
+        hover_data=["Region", "Contractor", "Overall Progress", "Schedule Variance (Days)"],
+        title="Site Execution Timeline (Forecast Finish Dates)",
+        color_discrete_map={
+            "Low": "#10B981",
+            "Medium": "#F59E0B",
+            "High": "#EF4444",
+            "Critical": "#991B1B"
+        }
+    )
+
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(
+        paper_bgcolor="#0B0F19",
+        plot_bgcolor="#1E293B",
+        font_color="#F8FAFC",
+        height=400,
+        margin=dict(l=20, r=20, t=40, b=20),
+        xaxis=dict(gridcolor="#334155"),
+        yaxis=dict(gridcolor="#334155")
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Detailed Schedule Table
+    st.markdown("### 📋 Schedule Variance Summary")
+    st.dataframe(
+        gantt_df[['Site ID', 'Name', 'Region', 'Contractor', 'Start Date', 'Baseline Finish', 'Forecast Finish', 'Schedule Variance (Days)', 'Risk']],
+        use_container_width=True
+    )
