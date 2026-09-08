@@ -1,62 +1,84 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 def render_evm_analytics_module(user_role):
-    st.subheader("📈 Advanced Analytics & Earned Value Management (EVM)")
-    st.caption("Quantitative performance metrics tracking CPI, SPI, Schedule Variance, and Cost Variance for active infrastructure projects.")
+    st.subheader("📈 Earned Value Management (EVM) & Advanced Cost Forecasting")
+    st.caption("Track Planned Value (PV), Earned Value (EV), Actual Cost (AC), and project predictive completion metrics (EAC, ETC, VAC, TCPI).")
 
-    if "evm_data" not in st.session_state:
-        st.session_state["evm_data"] = pd.DataFrame([
-            {"Project_ID": "PRJ-RIY-5G-102", "Project_Name": "Riyadh 5G Monopole Expansion", "BAC": 500000.0, "PV": 350000.0, "EV": 320000.0, "AC": 300000.0},
-            {"Project_ID": "PRJ-JED-FBR-045", "Project_Name": "Jeddah Metro Fiber Trenching", "BAC": 850000.0, "PV": 600000.0, "EV": 600000.0, "AC": 620000.0},
-            {"Project_ID": "PRJ-DAM-TWR-309", "Project_Name": "Dammam Lattice Tower Erection", "BAC": 1200000.0, "PV": 400000.0, "EV": 450000.0, "AC": 410000.0}
-        ])
+    # Sample EVM Portfolio Data
+    projects = {
+        "PRJ-RIY-5G-102 (Riyadh 5G Rollout)": {
+            "BAC": 500000.0,  # Budget at Completion
+            "PV": 350000.0,   # Planned Value
+            "EV": 320000.0,   # Earned Value
+            "AC": 340000.0    # Actual Cost
+        },
+        "PRJ-JED-FBR-045 (Jeddah FTTH Civil Works)": {
+            "BAC": 750000.0,
+            "PV": 400000.0,
+            "EV": 420000.0,
+            "AC": 390000.0
+        },
+        "PRJ-DAM-TWR-309 (Dammam Tower Replacement)": {
+            "BAC": 300000.0,
+            "PV": 200000.0,
+            "EV": 150000.0,
+            "AC": 180000.0
+        }
+    }
 
-    df = st.session_state["evm_data"].copy()
+    selected_prj = st.selectbox("Select Active Project for EVM Analysis:", list(projects.keys()))
+    pdata = projects[selected_prj]
 
-    df["CV ($)"] = df["EV"] - df["AC"]
-    df["SV ($)"] = df["EV"] - df["PV"]
-    df["CPI"] = (df["EV"] / df["AC"]).round(2)
-    df["SPI"] = (df["EV"] / df["PV"]).round(2)
-    df["EAC ($)"] = (df["BAC"] / df["CPI"]).round(2)
+    BAC = pdata["BAC"]
+    PV = pdata["PV"]
+    EV = pdata["EV"]
+    AC = pdata["AC"]
 
-    tot_bac = df["BAC"].sum()
-    tot_pv = df["PV"].sum()
-    tot_ev = df["EV"].sum()
-    tot_ac = df["AC"].sum()
+    # Core EVM Calculations
+    CV = EV - AC                       # Cost Variance
+    SV = EV - PV                       # Schedule Variance
+    CPI = EV / AC if AC > 0 else 1.0   # Cost Performance Index
+    SPI = EV / PV if PV > 0 else 1.0   # Schedule Performance Index
 
-    overall_cpi = round(tot_ev / tot_ac, 2) if tot_ac > 0 else 0
-    overall_spi = round(tot_ev / tot_pv, 2) if tot_pv > 0 else 0
+    # Advanced EVM Predictive Metrics
+    EAC = BAC / CPI if CPI > 0 else BAC               # Estimate at Completion
+    ETC = EAC - AC                                     # Estimate to Complete
+    VAC = BAC - EAC                                    # Variance at Completion
+    TCPI = (BAC - EV) / (BAC - AC) if (BAC - AC) > 0 else 1.0  # To-Complete Performance Index
 
+    # Metric Row 1: Baseline EVM Indices
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Portfolio BAC", f"${tot_bac:,.2f}")
-    col2.metric("Portfolio EV", f"${tot_ev:,.2f}")
-    col3.metric("Portfolio CPI", f"{overall_cpi}", delta="Under Budget" if overall_cpi >= 1.0 else "Over Budget")
-    col4.metric("Portfolio SPI", f"{overall_spi}", delta="Ahead of Schedule" if overall_spi >= 1.0 else "Behind Schedule")
+    col1.metric("Cost Performance Index (CPI)", f"{CPI:.2f}", delta=f"CV: SAR {CV:,.2f}", delta_color="normal" if CV >= 0 else "inverse")
+    col2.metric("Schedule Performance Index (SPI)", f"{SPI:.2f}", delta=f"SV: SAR {SV:,.2f}", delta_color="normal" if SV >= 0 else "inverse")
+    col3.metric("Budget at Completion (BAC)", f"SAR {BAC:,.2f}")
+    col4.metric("Actual Cost (AC)", f"SAR {AC:,.2f}")
 
     st.markdown("---")
-    st.markdown("### 📊 Project EVM Breakdown")
-    formatted_df = df.copy()
-    for col in ["BAC", "PV", "EV", "AC", "CV ($)", "SV ($)", "EAC ($)"]:
-        formatted_df[col] = formatted_df[col].apply(lambda x: f"${x:,.2f}")
+    st.markdown("### 🔮 Predictive Cost & Schedule Forecasting")
 
-    st.dataframe(formatted_df, use_container_width=True)
+    # Metric Row 2: Advanced Forecasts
+    f1, f2, f3, f4 = st.columns(4)
+    f1.metric("Estimate at Completion (EAC)", f"SAR {EAC:,.2f}", delta=f"VAC: SAR {VAC:,.2f}", delta_color="normal" if VAC >= 0 else "inverse")
+    f2.metric("Estimate to Complete (ETC)", f"SAR {ETC:,.2f}")
+    f3.metric("Variance at Completion (VAC)", f"SAR {VAC:,.2f}", delta_color="normal" if VAC >= 0 else "inverse")
+    f4.metric("TCPI (To-Complete Index)", f"{TCPI:.2f}", help="TCPI > 1.0 indicates remaining work requires higher efficiency to stay within budget.")
 
     st.markdown("---")
-    st.markdown("### 📈 Cost & Schedule Performance Indices (CPI vs SPI)")
-    st.bar_chart(df.set_index("Project_ID")[["CPI", "SPI"]])
+    st.markdown("### 📊 Cumulative S-Curve Performance Tracking")
 
-    with st.expander("➕ Update EVM Baseline / Inputs"):
-        with st.form("update_evm_form"):
-            p_id = st.selectbox("Select Project ID:", df["Project_ID"].tolist())
-            c_pv = st.number_input("New Planned Value (PV):", value=350000.0, step=10000.0)
-            c_ev = st.number_input("New Earned Value (EV):", value=320000.0, step=10000.0)
-            c_ac = st.number_input("New Actual Cost (AC):", value=300000.0, step=10000.0)
+    # Generate Synthetic S-Curve Timeline
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    pv_curve = np.linspace(20000, BAC, 12)
+    ev_curve = pv_curve * SPI
+    ac_curve = ev_curve / CPI
 
-            if st.form_submit_button("🔄 Update EVM Parameters"):
-                idx = st.session_state["evm_data"].index[st.session_state["evm_data"]["Project_ID"] == p_id].tolist()[0]
-                st.session_state["evm_data"].at[idx, "PV"] = c_pv
-                st.session_state["evm_data"].at[idx, "EV"] = c_ev
-                st.session_state["evm_data"].at[idx, "AC"] = c_ac
-                st.success(f"EVM values updated for {p_id}!")
-                st.rerun()
+    df_scurve = pd.DataFrame({
+        "Month": months,
+        "Planned Value (PV)": pv_curve,
+        "Earned Value (EV)": ev_curve,
+        "Actual Cost (AC)": ac_curve
+    }).set_index("Month")
+
+    st.line_chart(df_scurve)
