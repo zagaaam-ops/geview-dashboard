@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from utils.pdf_generator import generate_ipc_pdf
 
 def render_finance_module(user_role):
     st.subheader("💳 Commercial Finance, Billing & IPC Invoicing Portal")
@@ -34,6 +35,19 @@ def render_finance_module(user_role):
         for col in ["Gross_Amount_SAR", "VAT_15_Percent", "Net_Amount_SAR"]:
             display_df[col] = display_df[col].apply(lambda x: f"SAR {x:,.2f}")
         st.dataframe(display_df, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("### 📥 Export Official Printable PDF")
+        selected_ipc_id = st.selectbox("Select IPC Document:", df_fin["IPC_Number"].tolist())
+        selected_row = df_fin[df_fin["IPC_Number"] == selected_ipc_id].iloc[0].to_dict()
+        pdf_file = generate_ipc_pdf(selected_row)
+        
+        st.download_button(
+            label=f"📄 Download {selected_ipc_id} PDF Certificate",
+            data=pdf_file,
+            file_name=f"{selected_ipc_id}.pdf",
+            mime="application/pdf"
+        )
 
     with tabs[1]:
         st.markdown("### ➕ Generate & Submit New IPC Certificate")
