@@ -1,8 +1,8 @@
 streamlit
 pandas
-plotly
 openpyxl
-sqlalchemy
+plotly
+folium
+streamlit-folium
 psycopg2-binary
-requests
 reportlab
