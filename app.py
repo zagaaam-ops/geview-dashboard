@@ -17,6 +17,7 @@ from modules.docs import render_docs_module
 from modules.alerts import render_alerts_module
 from modules.db import get_db_engine, init_db, load_data_from_db, save_data_to_db
 from modules.pdf_report import generate_pdf_report
+from modules.auth import render_login_screen, logout
 
 st.set_page_config(
     page_title="Project Plus - Telecom PMIS",
@@ -24,62 +25,28 @@ st.set_page_config(
     layout="wide"
 )
 
+# Initialize Authentication State
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    render_login_screen()
+    st.stop()
+
+# User Persona Session
+user_info = st.session_state.get("user_info", {})
+user_role = user_info.get("role", "👷 Field Supervisor / Contractor")
+
 # Styling & SVG Preloader
 st.markdown("""
     <style>
         .main { background-color: #0b0f19; }
-        #preloader {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #0b0f19; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 999999;
-            animation: fadeOut 0.8s ease-in-out 3.5s forwards; pointer-events: none;
-        }
-        .animated-logo-svg { width: 140px; height: auto; margin-bottom: 20px; }
-        .tower-structure {
-            stroke: #10b981; stroke-width: 2.5; fill: none; stroke-dasharray: 600; stroke-dashoffset: 600;
-            animation: drawTower 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-        .signal-wave {
-            fill: none; stroke: #0284c7; stroke-width: 2; opacity: 0; transform-origin: center;
-            filter: drop-shadow(0 0 8px rgba(2, 132, 199, 0.6));
-            animation: rippleWave 2.2s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
-        }
-        .wave-2 { animation-delay: 0.4s; stroke: #06b6d4; }
-        .wave-3 { animation-delay: 0.8s; stroke: #10b981; }
-        .brand-text-main { font-size: 32px; font-weight: 700; fill: #ffffff; opacity: 0; transform: translateY(10px); animation: slideUpText 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.2s forwards; }
-        .brand-text-plus { fill: #10b981; }
-        .brand-tagline { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; margin-top: 8px; opacity: 0; animation: slideUpText 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.5s forwards; }
-        .copyright-tagline { font-size: 9px; color: #64748b; margin-top: 15px; opacity: 0; animation: fadeInSimple 1s ease 1.8s forwards; }
-        @keyframes drawTower { to { stroke-dashoffset: 0; fill: rgba(16, 185, 129, 0.05); } }
-        @keyframes rippleWave { 0% { opacity: 0; transform: scale(0.75); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.25); } }
-        @keyframes slideUpText { to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeInSimple { to { opacity: 1; } }
-        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
-
         div[data-testid="stMetric"] { background-color: #1E293B !important; border-radius: 10px; padding: 15px; border: 1px solid #334155; }
         div[data-testid="stMetric"] label { color: #94A3B8 !important; font-size: 0.85rem !important; font-weight: 600; }
         div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #38BDF8 !important; font-size: 1.8rem !important; font-weight: 700; }
         .alert-box-critical { background-color: #7F1D1D !important; color: #FFFFFF !important; border-left: 6px solid #EF4444; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
         .alert-box-warning { background-color: #78350F !important; color: #FFFFFF !important; border-left: 6px solid #F59E0B; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
     </style>
-
-    <div id="preloader">
-        <div style="text-align:center;">
-            <svg class="animated-logo-svg" viewBox="0 0 100 100">
-                <circle class="signal-wave wave-1" cx="50" cy="40" r="15" />
-                <circle class="signal-wave wave-2" cx="50" cy="40" r="25" />
-                <circle class="signal-wave wave-3" cx="50" cy="40" r="35" />
-                <path class="tower-structure" d="M50,10 L32,85 L68,85 Z M32,85 L50,45 L68,85 M36,68 L64,68 M41,48 L59,48 M50,10 L50,2" />
-            </svg>
-            <div>
-                <svg width="260" height="40" viewBox="0 0 240 40">
-                    <text x="50%" y="30" text-anchor="middle" class="brand-text-main">Project <tspan class="brand-text-plus">Plus</tspan></text>
-                </svg>
-            </div>
-            <div class="brand-tagline">Precision. Performance. Progress.</div>
-            <div class="copyright-tagline">© Copyright Rana Muhammad Zagham - PMP®</div>
-        </div>
-    </div>
 """, unsafe_allow_html=True)
 
 UPLOAD_DIR = "uploaded_site_docs"
@@ -145,25 +112,17 @@ def generate_excel_report(dataframe):
     for r in dataframe_to_rows(dataframe[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Budget', 'Actual', 'Risk']], index=False, header=True):
         ws.append(r)
 
-    header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
-    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    for cell in ws[3]:
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
     wb.save(output)
     return output.getvalue()
 
 # Sidebar Controls
-st.sidebar.title("🗼 Project Plus Controls")
+st.sidebar.title("🗼 Project Plus PMIS")
+st.sidebar.caption(f"Logged in as: **{user_info.get('name', 'User')}**")
+st.sidebar.caption(f"Role: **{user_role}**")
 
-if db_engine:
-    st.sidebar.caption("🟢 **Cloud Database:** Connected")
-else:
-    st.sidebar.caption("🟡 **Storage Mode:** Local Fallback")
+if st.sidebar.button("🔒 Sign Out"):
+    logout()
 
-user_role = st.sidebar.selectbox("Active Persona Role:", ["👑 Executive / C-Suite", "👔 Regional Project Manager", "👷 Field Supervisor / Contractor"])
 st.sidebar.markdown("---")
 
 if user_role == "👑 Executive / C-Suite":
@@ -207,7 +166,6 @@ if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
 
 # Header
 st.title("Project Plus - Telecom Infrastructure PMIS")
-st.caption(f"Persona View: **{user_role}**")
 
 total_sites = len(filtered_df)
 avg_progress = filtered_df['Overall Progress'].mean() if total_sites > 0 else 0
