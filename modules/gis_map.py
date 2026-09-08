@@ -1,63 +1,50 @@
 import streamlit as st
-import folium
-from streamlit_folium import st_folium
+import pandas as pd
 
-def render_gis_map(df):
-    st.subheader("🗺️ High-Resolution GIS Satellite & Topo Map")
-    
-    if 'lat' not in df.columns or 'lon' not in df.columns:
-        st.warning("No GPS coordinates found in dataset.")
-        return
+def render_gis_map_module(user_role):
+    st.subheader("🗺️ Interactive GIS Map & Site Location Portal")
+    st.caption("Geospatial tracking of telecom towers, civil sites, and regional infrastructure across Saudi Arabia.")
 
-    # Map Layer Selector
-    map_provider = st.radio(
-        "Select Basemap Tile Layer:",
-        ["🛰️ Esri World Imagery (HD Satellite)", "🗺️ OpenStreetMap (Standard)", "⛰️ Esri World Topo"],
-        horizontal=True
-    )
+    if "gis_sites" not in st.session_state:
+        st.session_state["gis_sites"] = pd.DataFrame([
+            {"Site_ID": "RIY-5G-102", "Client": "STC", "City": "Riyadh", "lat": 24.7136, "lon": 46.6753, "Status": "In Progress", "Tower_Type": "Rooftop Monopole"},
+            {"Site_ID": "JED-FBR-045", "Client": "Mobily", "City": "Jeddah", "lat": 21.5433, "lon": 39.1728, "Status": "Completed", "Tower_Type": "Underground Fiber Trench"},
+            {"Site_ID": "DAM-TWR-309", "Client": "Zain", "City": "Dammam", "lat": 26.4207, "lon": 50.0888, "Status": "Planning", "Tower_Type": "45m Lattice Tower"},
+            {"Site_ID": "MED-5G-012", "Client": "STC", "City": "Madinah", "lat": 24.5247, "lon": 39.5692, "Status": "In Progress", "Tower_Type": "Rooftop Monopole"}
+        ])
 
-    # Set initial center coordinates
-    center_lat = df['lat'].mean() if len(df) > 0 else 24.7136
-    center_lon = df['lon'].mean() if len(df) > 0 else 46.6753
+    df_sites = st.session_state["gis_sites"]
 
-    # Initialize Folium Map
-    if "Satellite" in map_provider:
-        tiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        attr = "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-    elif "Topo" in map_provider:
-        tiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
-        attr = "Tiles &copy; Esri"
+    c1, c2 = st.columns(2)
+    sel_city = c1.multiselect("Filter by City:", df_sites["City"].unique(), default=df_sites["City"].unique())
+    sel_client = c2.multiselect("Filter by Client:", df_sites["Client"].unique(), default=df_sites["Client"].unique())
+
+    filtered_df = df_sites[(df_sites["City"].isin(sel_city)) & (df_sites["Client"].isin(sel_client))]
+
+    st.markdown("### 📍 Active Site Map View")
+    if not filtered_df.empty:
+        st.map(filtered_df[["lat", "lon"]])
     else:
-        tiles = "OpenStreetMap"
-        attr = None
+        st.warning("No site locations match the selected filters.")
 
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=6, tiles=tiles, attr=attr)
+    st.markdown("---")
+    st.markdown("### 📋 Site Coordinates & Metadata Directory")
+    st.dataframe(filtered_df, use_container_width=True)
 
-    # Add Color-coded Tower Markers
-    risk_colors = {'Low': 'green', 'Medium': 'orange', 'Critical': 'red'}
+    with st.expander("➕ Add New GIS Site Location"):
+        with st.form("add_gis_site"):
+            f1, f2, f3 = st.columns(3)
+            new_id = f1.text_input("Site ID:", "RUH-5G-888")
+            new_client = f2.selectbox("Client:", ["STC", "Mobily", "Zain", "Dawiyat"])
+            new_city = f3.text_input("City:", "Riyadh")
 
-    for _, row in df.iterrows():
-        color = risk_colors.get(row['Risk'], 'blue')
-        popup_html = f"""
-            <div style="font-family: Arial; width: 180px;">
-                <h4>{row['Site ID']}</h4>
-                <b>Name:</b> {row['Name']}<br/>
-                <b>Region:</b> {row['Region']}<br/>
-                <b>Contractor:</b> {row['Contractor']}<br/>
-                <b>Progress:</b> {int(row['Overall Progress']*100)}%<br/>
-                <b>Risk Status:</b> <span style="color:{color}; font-weight:bold;">{row['Risk']}</span>
-            </div>
-        """
-        
-        folium.CircleMarker(
-            location=[row['lat'], row['lon']],
-            radius=8,
-            popup=folium.Popup(popup_html, max_width=250),
-            tooltip=f"{row['Site ID']} - {row['Name']} ({row['Risk']} Risk)",
-            color=color,
-            fill=True,
-            fill_color=color,
-            fill_opacity=0.85
-        ).add_to(m)
+            f4, f5, f6 = st.columns(3)
+            new_lat = f4.number_input("Latitude:", value=24.77426, format="%.5f")
+            new_lon = f5.number_input("Longitude:", value=46.73858, format="%.5f")
+            new_type = f6.selectbox("Tower/Infrastructure Type:", ["Rooftop Monopole", "45m Lattice Tower", "Underground Fiber Trench"])
 
-    st_folium(m, width="100%", height=500)
+            if st.form_submit_button("📍 Register Site Location"):
+                new_row = {"Site_ID": new_id, "Client": new_client, "City": new_city, "lat": new_lat, "lon": new_lon, "Status": "Planning", "Tower_Type": new_type}
+                st.session_state["gis_sites"] = pd.concat([df_sites, pd.DataFrame([new_row])], ignore_index=True)
+                st.success(f"Site {new_id} registered!")
+                st.rerun()
