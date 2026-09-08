@@ -1,68 +1,59 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from datetime import date
 
 def render_finance_module(user_role):
-    st.subheader("💳 Financial Management & Invoicing System")
-    st.caption("Track project budgets, generate client invoices, monitor cash flow, and manage vendor payments.")
+    st.subheader("💳 Commercial Finance, Billing & IPC Invoicing Portal")
+    st.caption("Manage Interim Payment Certificates (IPCs), track client billing milestones, and calculate Saudi VAT compliance.")
 
-    if "fin_invoices" not in st.session_state:
-        st.session_state["fin_invoices"] = pd.DataFrame([
-            {"Invoice_ID": "INV-2026-001", "Client_Name": "STC Telecom Infrastructure", "Project_Ref": "Riyadh 5G Site Civil Upgrade", "Issue_Date": "2026-08-15", "Due_Date": "2026-09-15", "Amount_SAR": 125000.00, "VAT_SAR": 18750.00, "Total_Amount_SAR": 143750.00, "Status": "Unpaid"},
-            {"Invoice_ID": "INV-2026-002", "Client_Name": "Mobily Network Operations", "Project_Ref": "Jeddah Fiber Foundation Civil Works", "Issue_Date": "2026-07-01", "Due_Date": "2026-08-01", "Amount_SAR": 85000.00, "VAT_SAR": 12750.00, "Total_Amount_SAR": 97750.00, "Status": "Paid"},
-            {"Invoice_ID": "INV-2026-003", "Client_Name": "Zain KSA Regional Expansion", "Project_Ref": "Dammam Tower Foundation & Civil", "Issue_Date": "2026-08-20", "Due_Date": "2026-09-20", "Amount_SAR": 210000.00, "VAT_SAR": 31500.00, "Total_Amount_SAR": 241500.00, "Status": "Unpaid"}
+    if "ipc_invoices" not in st.session_state:
+        st.session_state["ipc_invoices"] = pd.DataFrame([
+            {"IPC_Number": "IPC-STC-2026-001", "Client": "STC", "Project_ID": "PRJ-RIY-5G-102", "Gross_Amount_SAR": 250000.0, "VAT_15_Percent": 37500.0, "Net_Amount_SAR": 287500.0, "Status": "Approved & Paid", "Payment_Date": "2026-08-15"},
+            {"IPC_Number": "IPC-MBLY-2026-004", "Client": "Mobily", "Project_ID": "PRJ-JED-FBR-045", "Gross_Amount_SAR": 420000.0, "VAT_15_Percent": 63000.0, "Net_Amount_SAR": 483000.0, "Status": "Pending Client Approval", "Payment_Date": "Pending"},
+            {"IPC_Number": "IPC-ZAIN-2026-002", "Client": "Zain", "Project_ID": "PRJ-DAM-TWR-309", "Gross_Amount_SAR": 180000.0, "VAT_15_Percent": 27000.0, "Net_Amount_SAR": 207000.0, "Status": "Draft", "Payment_Date": "Unsubmitted"}
         ])
 
-    if "fin_expenses" not in st.session_state:
-        st.session_state["fin_expenses"] = pd.DataFrame([
-            {"Expense_ID": "EXP-101", "Category": "Subcontractor & Field Labor", "Vendor_Project": "Riyadh Site Civil Upgrade", "Amount_SAR": 45000.00, "Date": "2026-08-10", "Status": "Approved"},
-            {"Expense_ID": "EXP-102", "Category": "Materials & Concrete Supply", "Vendor_Project": "Jeddah Fiber Foundation", "Amount_SAR": 28000.00, "Date": "2026-07-20", "Status": "Paid"}
-        ])
+    df_fin = st.session_state["ipc_invoices"]
 
-    inv_df = st.session_state["fin_invoices"]
-    exp_df = st.session_state["fin_expenses"]
+    tot_billed = df_fin["Net_Amount_SAR"].sum()
+    tot_vat = df_fin["VAT_15_Percent"].sum()
+    paid_amount = df_fin[df_fin["Status"] == "Approved & Paid"]["Net_Amount_SAR"].sum()
+    pending_amount = tot_billed - paid_amount
 
-    tabs = st.tabs(["📊 Financial Dashboard", "🧾 Invoicing & Billing", "➕ Create New Invoice", "💸 Expense & Subcontractor Outflow"])
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Billed (incl. VAT)", f"SAR {tot_billed:,.2f}")
+    col2.metric("Total Paid Invoices", f"SAR {paid_amount:,.2f}")
+    col3.metric("Outstanding Collections", f"SAR {pending_amount:,.2f}")
+    col4.metric("15% Saudi VAT Liability", f"SAR {tot_vat:,.2f}")
+
+    st.markdown("---")
+    tabs = st.tabs(["📄 IPC Certificates & Invoices", "➕ Generate New IPC Invoice", "📊 Revenue Stream Breakdown"])
 
     with tabs[0]:
-        st.markdown("### 📊 Executive Financial Overview")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("TOTAL INVOICED", f"SAR {inv_df["Total_Amount_SAR"].sum():,.2f}")
-        m2.metric("COLLECTED REVENUE", f"SAR {inv_df[inv_df["Status"] == "Paid"]["Total_Amount_SAR"].sum():,.2f}")
-        m3.metric("OUTSTANDING RECEIVABLES", f"SAR {inv_df[inv_df["Status"] == "Unpaid"]["Total_Amount_SAR"].sum():,.2f}", delta="-Pending Collection", delta_color="inverse")
-        m4.metric("TOTAL EXPENSES", f"SAR {exp_df["Amount_SAR"].sum():,.2f}")
-
-        col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            st.markdown("##### 📈 Billing Status Breakdown")
-            fig_inv = px.pie(inv_df, names="Status", values="Total_Amount_SAR", color="Status", color_discrete_map={"Paid": "#10B981", "Unpaid": "#F59E0B"}, hole=0.4)
-            st.plotly_chart(fig_inv, use_container_width=True)
-
-        with col_c2:
-            st.markdown("##### 🏢 Revenue by Client")
-            fig_client = px.bar(inv_df, x="Client_Name", y="Total_Amount_SAR", color="Status", barmode="group")
-            st.plotly_chart(fig_client, use_container_width=True)
+        st.markdown("### 📄 Interim Payment Certificates (IPCs)")
+        display_df = df_fin.copy()
+        for col in ["Gross_Amount_SAR", "VAT_15_Percent", "Net_Amount_SAR"]:
+            display_df[col] = display_df[col].apply(lambda x: f"SAR {x:,.2f}")
+        st.dataframe(display_df, use_container_width=True)
 
     with tabs[1]:
-        st.markdown("### 🧾 Client Invoices & Status Tracking")
-        st.dataframe(inv_df, use_container_width=True)
-
-    with tabs[2]:
-        st.markdown("### ➕ Generate New Client Invoice")
-        with st.form("create_invoice_form"):
+        st.markdown("### ➕ Generate & Submit New IPC Certificate")
+        with st.form("create_ipc_form"):
             c1, c2 = st.columns(2)
-            c_name = c1.text_input("Client Name:", "Saudi Telecom Company (STC)")
-            p_ref = c2.text_input("Project Reference:", "Riyadh Civil Upgrade Works")
-            subtotal = st.number_input("Base Amount (SAR):", min_value=1000.0, value=50000.0)
-            submit = st.form_submit_button("🧾 Generate & Issue Invoice")
-            if submit:
-                vat = subtotal * 0.15
-                new_row = {"Invoice_ID": f"INV-2026-00{len(inv_df)+1}", "Client_Name": c_name, "Project_Ref": p_ref, "Issue_Date": str(date.today()), "Due_Date": str(date.today()), "Amount_SAR": subtotal, "VAT_SAR": vat, "Total_Amount_SAR": subtotal + vat, "Status": "Unpaid"}
-                st.session_state["fin_invoices"] = pd.concat([inv_df, pd.DataFrame([new_row])], ignore_index=True)
-                st.success("Invoice generated successfully!")
+            client_name = c1.selectbox("Client Operator:", ["STC", "Mobily", "Zain", "Dawiyat"])
+            proj_id = c2.selectbox("Project ID:", ["PRJ-RIY-5G-102", "PRJ-JED-FBR-045", "PRJ-DAM-TWR-309"])
+            c3, c4 = st.columns(2)
+            gross_val = c3.number_input("Gross Work Completed (SAR):", min_value=10000.0, value=150000.0, step=5000.0)
+            vat_val = gross_val * 0.15
+            net_val = gross_val + vat_val
+            c4.info(f"**Calculated 15% VAT:** SAR {vat_val:,.2f}\n\n**Total Invoice Amount:** SAR {net_val:,.2f}")
+            if st.form_submit_button("💳 Submit IPC Invoice"):
+                new_ipc_num = f"IPC-{client_name.upper()}-2026-00{len(df_fin) + 1}"
+                new_ipc = {"IPC_Number": new_ipc_num, "Client": client_name, "Project_ID": proj_id, "Gross_Amount_SAR": gross_val, "VAT_15_Percent": vat_val, "Net_Amount_SAR": net_val, "Status": "Pending Client Approval", "Payment_Date": "Pending"}
+                st.session_state["ipc_invoices"] = pd.concat([df_fin, pd.DataFrame([new_ipc])], ignore_index=True)
+                st.success(f"IPC Certificate {new_ipc_num} generated successfully!")
                 st.rerun()
 
-    with tabs[3]:
-        st.markdown("### 💸 Subcontractor Expenses & Operational Outflow")
-        st.dataframe(exp_df, use_container_width=True)
+    with tabs[2]:
+        st.markdown("### 📊 Client-Wise Revenue Allocation")
+        client_summary = df_fin.groupby("Client")["Net_Amount_SAR"].sum().reset_index()
+        st.bar_chart(client_summary.set_index("Client"))
