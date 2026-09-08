@@ -166,3 +166,10 @@ elif nav_option == "📸 Site Photos & Docs":
     render_docs_module(filtered_df, UPLOAD_DIR)
 elif nav_option == "🚨 Automated Alerts Engine":
     render_alerts_module(filtered_df)
+
+# Import and display Finance Module
+try:
+    from modules.finance import render_finance_module
+    # Call render_finance_module(user_role) inside your navigation or tabs structure
+except ImportError:
+    pass

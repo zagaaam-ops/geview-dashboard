@@ -1,18 +1,20 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from datetime import date
 
 def render_hr_module(user_role):
-    st.subheader("👥 Internal Employee HR Portal")
-    st.caption("Manage Employee Profiles, Leave Requests, Pay Slips, and Annual Vacation Entitlements.")
+    st.subheader("🏢 Enterprise HR & Organizational Portal")
+    st.caption("Interactive Organizational Chart, Employee Profiles, Leave Management, and Compensation")
 
     if "hr_employees" not in st.session_state:
         st.session_state["hr_employees"] = pd.DataFrame([
             {
-                "Emp_ID": "EMP-101",
+                "Emp_ID": "EMP-100",
                 "Name": "Rana Muhammad Zagham Ali",
                 "Role": "👔 Regional Project Manager",
-                "Department": "Civil & Telecom Engineering",
+                "Department": "Project Management Office",
+                "Manager": "Executive Board",
                 "Join_Date": "2022-03-15",
                 "Annual_Vacation_Balance": 21,
                 "Sick_Leave_Balance": 10,
@@ -21,16 +23,43 @@ def render_hr_module(user_role):
                 "Transport_Allowance_SAR": 2500
             },
             {
+                "Emp_ID": "EMP-101",
+                "Name": "Tariq Al-Mansoor",
+                "Role": "🏗️ Lead Civil Engineer",
+                "Department": "Civil & Telecom Engineering",
+                "Manager": "Rana Muhammad Zagham Ali",
+                "Join_Date": "2023-01-10",
+                "Annual_Vacation_Balance": 15,
+                "Sick_Leave_Balance": 8,
+                "Basic_Salary_SAR": 18000,
+                "Housing_Allowance_SAR": 4500,
+                "Transport_Allowance_SAR": 2000
+            },
+            {
                 "Emp_ID": "EMP-102",
                 "Name": "Ahmed Mansoor",
-                "Role": "👷 Field Supervisor / Contractor",
+                "Role": "👷 Field Supervisor",
                 "Department": "Field Implementation",
+                "Manager": "Tariq Al-Mansoor",
                 "Join_Date": "2023-06-01",
                 "Annual_Vacation_Balance": 18,
                 "Sick_Leave_Balance": 8,
                 "Basic_Salary_SAR": 14000,
                 "Housing_Allowance_SAR": 3500,
                 "Transport_Allowance_SAR": 1500
+            },
+            {
+                "Emp_ID": "EMP-103",
+                "Name": "Fahad Al-Otaibi",
+                "Role": "📡 Telecom Integration Lead",
+                "Department": "Civil & Telecom Engineering",
+                "Manager": "Rana Muhammad Zagham Ali",
+                "Join_Date": "2023-09-15",
+                "Annual_Vacation_Balance": 22,
+                "Sick_Leave_Balance": 10,
+                "Basic_Salary_SAR": 20000,
+                "Housing_Allowance_SAR": 5000,
+                "Transport_Allowance_SAR": 2000
             }
         ])
 
@@ -53,38 +82,61 @@ def render_hr_module(user_role):
     leave_df = st.session_state["hr_leave_requests"]
 
     tabs = st.tabs([
-        "👤 Profile & Balances",
+        "🌳 Organizational Structure Map",
+        "👤 Employee Profile Directory",
         "📝 Submit Leave Request",
-        "✅ PM Leave Approvals",
-        "💵 Pay Slip & Salary"
+        "✅ PM Approval Queue",
+        "💵 Pay Slip & Compensation"
     ])
 
-    # TAB 1: Profile & Vacation Balances
     with tabs[0]:
-        st.markdown("### 👤 Employee Profile Overview")
-        sel_emp = st.selectbox("Select Employee Profile:", emp_df["Name"].tolist())
+        st.markdown("### 🌳 Interactive Organization Hierarchy Map")
+        st.caption("Click or hover over blocks to inspect reporting lines, department headcounts, and role structures.")
+        fig_org = px.treemap(
+            emp_df,
+            names="Name",
+            parents="Manager",
+            values=[1]*len(emp_df),
+            color="Department",
+            hover_data={"Role": True, "Emp_ID": True, "Department": True},
+            color_discrete_sequence=px.colors.qualitative.Dark24
+        )
+        fig_org.update_traces(textinfo="label+value", marker_line_width=2, marker_line_color="#1E293B")
+        fig_org.update_layout(margin=dict(t=20, l=10, r=10, b=10), height=450, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_org, use_container_width=True)
+
+        st.markdown("#### 📊 Department Headcount Summary")
+        dept_counts = emp_df["Department"].value_counts().reset_index()
+        dept_counts.columns = ["Department", "Active Employees"]
+        st.dataframe(dept_counts, use_container_width=True)
+
+    with tabs[1]:
+        st.markdown("### 👤 Interactive Employee Directory & Profile Cards")
+        sel_emp = st.selectbox("Select Employee:", emp_df["Name"].tolist())
         emp_row = emp_df[emp_df["Name"] == sel_emp].iloc[0]
 
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(f"**Employee ID:** `{emp_row['Emp_ID']}`")
-        c1.markdown(f"**Department:** {emp_row['Department']}")
-        c2.markdown(f"**Designation / Role:** {emp_row['Role']}")
-        c2.markdown(f"**Joined Date:** {emp_row['Join_Date']}")
-        c3.markdown(f"**Base Location:** KSA Regional HQ")
+        with st.container():
+            st.markdown(f"### {emp_row['Name']} (`{emp_row['Emp_ID']}`)")
+            col_p1, col_p2, col_p3 = st.columns(3)
+            col_p1.markdown(f"**Designation:** {emp_row['Role']}")
+            col_p1.markdown(f"**Department:** {emp_row['Department']}")
+            col_p2.markdown(f"**Reports To:** {emp_row['Manager']}")
+            col_p2.markdown(f"**Date Joined:** {emp_row['Join_Date']}")
+            col_p3.markdown(f"**Base Location:** KSA Regional HQ")
+            col_p3.markdown(f"**Employment Status:** Active Regular")
 
         st.markdown("---")
-        st.markdown("### 🏖️ Leave & Vacation Balances")
+        st.markdown("### 🏖️ Real-time Vacation & Entitlement Tracker")
         b1, b2, b3 = st.columns(3)
         b1.metric("ANNUAL VACATION BALANCE", f"{emp_row['Annual_Vacation_Balance']} Days")
         b2.metric("SICK LEAVE BALANCE", f"{emp_row['Sick_Leave_Balance']} Days")
         b3.metric("EMERGENCY LEAVE", "5 Days")
 
-    # TAB 2: Submit Leave Request
-    with tabs[1]:
+    with tabs[2]:
         st.markdown("### 📝 Submit Leave Request Form")
-        st.caption("Leave requests are automatically routed to the Regional PM for approval.")
+        st.caption("Requests dynamically route to the direct manager/PM for sign-off.")
 
-        with st.form("leave_request_form"):
+        with st.form("leave_request_form_interactive"):
             col_l1, col_l2 = st.columns(2)
             applicant = col_l1.selectbox("Employee Name:", emp_df["Name"].tolist())
             leave_type = col_l2.selectbox("Leave Type:", ["Annual Vacation", "Sick Leave", "Emergency Leave", "Unpaid Leave"])
@@ -94,7 +146,7 @@ def render_hr_module(user_role):
             end_d = col_d2.date_input("End Date:", date.today())
             reason = st.text_area("Reason for Leave:")
 
-            submitted = st.form_submit_button("🚀 Submit Request to PM")
+            submitted = st.form_submit_button("🚀 Submit Request to Manager")
 
             if submitted:
                 days_requested = (end_d - start_d).days + 1
@@ -114,12 +166,11 @@ def render_hr_module(user_role):
                         "Status": "Pending PM Approval"
                     }
                     st.session_state["hr_leave_requests"] = pd.concat([leave_df, pd.DataFrame([new_req])], ignore_index=True)
-                    st.success(f"Leave request submitted ({days_requested} days)! Sent to Project Manager for approval.")
+                    st.success(f"Leave request submitted ({days_requested} days)! Routed to Manager for approval.")
                     st.rerun()
 
-    # TAB 3: PM Approval Queue
-    with tabs[2]:
-        st.markdown("### ✅ PM Leave Approval Management")
+    with tabs[3]:
+        st.markdown("### ✅ Manager & PM Approval Hub")
         pending_leaves = st.session_state["hr_leave_requests"][st.session_state["hr_leave_requests"]["Status"] == "Pending PM Approval"]
 
         if len(pending_leaves) == 0:
@@ -142,10 +193,10 @@ def render_hr_module(user_role):
                     elif req_data["Leave_Type"] == "Sick Leave":
                         st.session_state["hr_employees"].loc[st.session_state["hr_employees"]["Name"] == e_name, "Sick_Leave_Balance"] -= l_days
 
-                    st.success(f"Leave Request {sel_req_id} Approved! {l_days} days deducted from balance.")
+                    st.success(f"Leave Request {sel_req_id} Approved! {l_days} days deducted from employee balance.")
                     st.rerun()
                 else:
-                    st.error("Permission Denied: Only PMs can approve leave requests.")
+                    st.error("Permission Denied: Only PMs or Executives can approve leave requests.")
 
             if col_a2.button("❌ Reject Request"):
                 if user_role in ["👔 Regional Project Manager", "👑 Executive / C-Suite"]:
@@ -153,10 +204,9 @@ def render_hr_module(user_role):
                     st.warning(f"Leave Request {sel_req_id} rejected.")
                     st.rerun()
 
-    # TAB 4: Pay Slip Breakdown
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("### 💵 Monthly Pay Slip Breakdown")
-        sel_pay_emp = st.selectbox("Select Employee Pay Slip:", emp_df["Name"].tolist(), key="ps_select")
+        sel_pay_emp = st.selectbox("Select Employee Pay Slip:", emp_df["Name"].tolist(), key="ps_select_org")
         p_row = emp_df[emp_df["Name"] == sel_pay_emp].iloc[0]
 
         basic = p_row["Basic_Salary_SAR"]
@@ -164,8 +214,8 @@ def render_hr_module(user_role):
         transport = p_row["Transport_Allowance_SAR"]
         gross = basic + housing + transport
 
-        st.markdown("#### Pay Slip Period: **September 2026**")
-        st.info(f"Employee: **{p_row['Name']}** ({p_row['Emp_ID']}) | Role: {p_row['Role']}")
+        st.markdown(f"#### Pay Slip for Period: **September 2026**")
+        st.info(f"Employee: **{p_row['Name']}** ({p_row['Emp_ID']}) | Role: {p_row['Role']} | Reports To: {p_row['Manager']}")
 
         p1, p2 = st.columns(2)
         with p1:
@@ -177,7 +227,7 @@ def render_hr_module(user_role):
 
         with p2:
             st.markdown("##### 📤 Deductions & Net (SAR)")
-            st.write(f"• GOSI / Social Insurance: **SAR {basic * 0.1:,.2f}**")
+            st.write(f"• GOSI Contribution: **SAR {basic * 0.1:,.2f}**")
             st.write(f"• Other Deductions: **SAR 0.00**")
             net_pay = gross - (basic * 0.1)
             st.markdown(f"### **Net Disbursed Pay: SAR {net_pay:,.2f}**")
