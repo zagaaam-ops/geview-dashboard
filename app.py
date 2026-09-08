@@ -1,4 +1,11 @@
 import streamlit as st
+try:
+    from utils.db import init_supabase_db
+    init_supabase_db()
+except Exception as e:
+    st.sidebar.warning(f"DB Connection Warning: {e}")
+
+import streamlit as st
 
 st.set_page_config(
     page_title="Enterprise ERP System",
