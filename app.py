@@ -6,7 +6,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Import Modular Components
+# Import Modules
 from modules.gis_map import render_gis_map
 from modules.acceptance import render_acceptance_module
 from modules.analytics import render_analytics_module
@@ -16,17 +16,13 @@ from modules.editor import render_editor_module
 from modules.docs import render_docs_module
 from modules.alerts import render_alerts_module
 from modules.price_book import render_price_book_module
-from modules.db import get_db_engine, init_db, load_data_from_db, save_data_to_db
+from modules.vendor_compare import render_vendor_comparison_module
+from modules.db import get_db_engine, init_db, load_data_from_db
 from modules.pdf_report import generate_pdf_report
 from modules.auth import render_login_screen, logout
 
-st.set_page_config(
-    page_title="Project Plus - Telecom PMIS",
-    page_icon="🗼",
-    layout="wide"
-)
+st.set_page_config(page_title="Project Plus - Telecom PMIS", page_icon="🗼", layout="wide")
 
-# Initialize Authentication State
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -34,11 +30,9 @@ if not st.session_state["authenticated"]:
     render_login_screen()
     st.stop()
 
-# User Persona Session
 user_info = st.session_state.get("user_info", {})
 user_role = user_info.get("role", "👷 Field Supervisor / Contractor")
 
-# Styling
 st.markdown("""
     <style>
         .main { background-color: #0b0f19; }
@@ -52,7 +46,6 @@ UPLOAD_DIR = "uploaded_site_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 EXCEL_FILE = "Gods_Eye_View_Telecom_Dashboard.xlsx"
 
-# Setup DB Engine
 db_engine = get_db_engine()
 
 def get_default_df():
@@ -94,40 +87,23 @@ def load_data():
 
 df = load_data()
 
-# Excel Exporter
-def generate_excel_report(dataframe):
-    output = io.BytesIO()
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Executive Summary"
-    
-    ws.merge_cells('A1:G1')
-    ws['A1'] = "PROJECT PLUS - EXECUTIVE REPORT"
-    ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
-    ws['A1'].fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-    ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 35
-
-    for r in dataframe_to_rows(dataframe[['Site ID', 'Name', 'Region', 'Contractor', 'Overall Progress', 'Budget', 'Actual', 'Risk']], index=False, header=True):
-        ws.append(r)
-
-    wb.save(output)
-    return output.getvalue()
-
-# Sidebar Navigation
+# Sidebar
 st.sidebar.title("🗼 Project Plus PMIS")
 st.sidebar.caption(f"Logged in as: **{user_info.get('name', 'User')}**")
-st.sidebar.caption(f"Role: **{user_role}**")
 
 if st.sidebar.button("🔒 Sign Out"):
     logout()
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ System FX Settings")
+fx_rate = st.sidebar.number_input("USD to SAR Rate:", value=3.75, step=0.01)
+
+st.sidebar.markdown("---")
 
 if user_role == "👑 Executive / C-Suite":
-    available_modules = ["📊 Executive Analytics", "🏷️ Approved Price Books & BOQ Rate Cards", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
 elif user_role == "👔 Regional Project Manager":
-    available_modules = ["📊 Executive Analytics", "🏷️ Approved Price Books & BOQ Rate Cards", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
 else:
     available_modules = ["📋 Digital PAT/FAC Acceptance", "📸 Site Photos & Docs", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates"]
 
@@ -140,28 +116,6 @@ contractors = st.sidebar.multiselect("Filter Contractor:", options=df['Contracto
 risk_levels = st.sidebar.multiselect("Filter Risk:", options=df['Risk'].unique(), default=df['Risk'].unique())
 
 filtered_df = df[(df['Region'].isin(regions)) & (df['Contractor'].isin(contractors)) & (df['Risk'].isin(risk_levels))]
-
-if user_role in ["👑 Executive / C-Suite", "👔 Regional Project Manager"]:
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📥 Executive Exports")
-    
-    excel_data = generate_excel_report(filtered_df)
-    st.sidebar.download_button(
-        label="📄 Export Excel Summary",
-        data=excel_data,
-        file_name="Executive_Telecom_Report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True
-    )
-
-    pdf_data = generate_pdf_report(filtered_df)
-    st.sidebar.download_button(
-        label="📊 Export PDF Executive Report",
-        data=pdf_data,
-        file_name="Executive_Status_Report.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
 
 # Header
 st.title("Project Plus - Telecom Infrastructure PMIS")
@@ -190,6 +144,8 @@ st.markdown("---")
 # Navigation Routing
 if nav_option == "📊 Executive Analytics":
     render_analytics_module(filtered_df)
+elif nav_option == "⚖️ Vendor Rate Comparison Matrix":
+    render_vendor_comparison_module(fx_rate)
 elif nav_option == "🏷️ Approved Price Books & BOQ Rate Cards":
     render_price_book_module(db_engine)
 elif nav_option == "🗺️ Site Map & GIS Coordinates":
