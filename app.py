@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-import io
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
-from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Import Modules
 from modules.gis_map import render_gis_map
@@ -18,8 +14,8 @@ from modules.alerts import render_alerts_module
 from modules.price_book import render_price_book_module
 from modules.vendor_compare import render_vendor_comparison_module
 from modules.workflow import render_workflow_module
+from modules.hr import render_hr_module
 from modules.db import get_db_engine, init_db, load_data_from_db
-from modules.pdf_report import generate_pdf_report
 from modules.auth import render_login_screen, logout
 
 st.set_page_config(page_title="Project Plus - Telecom PMIS", page_icon="🗼", layout="wide")
@@ -92,7 +88,7 @@ def load_data():
 
 df = load_data()
 
-# Sidebar
+# Sidebar Navigation
 st.sidebar.title("🗼 Project Plus PMIS")
 st.sidebar.caption(f"Logged in as: **{user_info.get('name', 'User')}**")
 
@@ -106,11 +102,11 @@ fx_rate = st.sidebar.number_input("USD to SAR Rate:", value=3.75, step=0.01)
 st.sidebar.markdown("---")
 
 if user_role == "👑 Executive / C-Suite":
-    available_modules = ["📊 Executive Analytics", "🔄 Approval Chain & Financial Settlement", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "🔄 Approval Chain & Financial Settlement", "👥 Internal Employee HR Portal", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "🚨 Automated Alerts Engine"]
 elif user_role == "👔 Regional Project Manager":
-    available_modules = ["📊 Executive Analytics", "🔄 Approval Chain & Financial Settlement", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
+    available_modules = ["📊 Executive Analytics", "🔄 Approval Chain & Financial Settlement", "👥 Internal Employee HR Portal", "⚖️ Vendor Rate Comparison Matrix", "🏷️ Approved Price Books & BOQ Rate Cards", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates", "📋 Digital PAT/FAC Acceptance", "📅 Schedule & Gantt Timeline", "💰 Financial EVM View", "📸 Site Photos & Docs", "🚨 Automated Alerts Engine"]
 else:
-    available_modules = ["🔄 Approval Chain & Financial Settlement", "📋 Digital PAT/FAC Acceptance", "📸 Site Photos & Docs", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates"]
+    available_modules = ["👥 Internal Employee HR Portal", "🔄 Approval Chain & Financial Settlement", "📋 Digital PAT/FAC Acceptance", "📸 Site Photos & Docs", "📝 Interactive Data & BOQ Editor", "🗺️ Site Map & GIS Coordinates"]
 
 nav_option = st.sidebar.radio("Select Module:", available_modules)
 
@@ -119,11 +115,9 @@ st.sidebar.subheader("🎯 Data Filters")
 regions = st.sidebar.multiselect("Filter Region:", options=df['Region'].unique(), default=df['Region'].unique())
 contractors = st.sidebar.multiselect("Filter Contractor:", options=df['Contractor'].unique(), default=df['Contractor'].unique())
 
-# Only filter approved sites for GIS map display
 approved_df = df[df['Site_Approval_Status'] == 'Approved']
 filtered_df = approved_df[(approved_df['Region'].isin(regions)) & (approved_df['Contractor'].isin(contractors))]
 
-# Header
 st.title("Project Plus - Telecom Infrastructure PMIS")
 
 total_sites = len(filtered_df)
@@ -152,6 +146,8 @@ if nav_option == "📊 Executive Analytics":
     render_analytics_module(filtered_df)
 elif nav_option == "🔄 Approval Chain & Financial Settlement":
     df = render_workflow_module(df, user_role, fx_rate)
+elif nav_option == "👥 Internal Employee HR Portal":
+    render_hr_module(user_role)
 elif nav_option == "⚖️ Vendor Rate Comparison Matrix":
     render_vendor_comparison_module(fx_rate)
 elif nav_option == "🏷️ Approved Price Books & BOQ Rate Cards":
