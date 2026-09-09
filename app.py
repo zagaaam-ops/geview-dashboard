@@ -19,40 +19,7 @@ if "preloader_shown" not in st.session_state:
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- DYNAMIC MODULE DISCOVERY & IMPORT ---
-def load_repository_modules():
-    modules = {}
-    
-    # Check root directory or subdirectories for module Python files
-    search_dirs = [".", "modules", "views", "pages"]
-    
-    for search_dir in search_dirs:
-        if os.path.exists(search_dir):
-            for file in sorted(os.listdir(search_dir)):
-                if file.endswith(".py") and file not in ["app.py", "setup.py", "__init__.py"]:
-                    module_name = file.replace(".py", "").replace("_", " ").title()
-                    file_path = os.path.join(search_dir, file)
-                    
-                    try:
-                        spec = importlib.util.spec_from_file_location(file.replace(".py", ""), file_path)
-                        mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(mod)
-                        
-                        # Detect render or main entry function in the imported module
-                        if hasattr(mod, "render"):
-                            modules[module_name] = mod.render
-                        elif hasattr(mod, "main"):
-                            modules[module_name] = mod.main
-                        elif hasattr(mod, "show"):
-                            modules[module_name] = mod.show
-                        else:
-                            modules[module_name] = lambda mod=mod: st.write(f"Module `{module_name}` loaded.")
-                    except Exception as e:
-                        st.sidebar.warning(f"Failed to import {file}: {e}")
-                        
-    return modules
-
-# --- FULLSCREEN PRELOADER GATE ---
+# --- FULLPAGE PRELOADER GATE ---
 if not st.session_state.preloader_shown:
     fullpage_preloader_html = """
     <!DOCTYPE html>
@@ -61,7 +28,7 @@ if not st.session_state.preloader_shown:
         <meta charset="UTF-8">
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            html, body { width: 100%; height: 100%; overflow: hidden; background-color: #0b0f19; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+            html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #0b0f19; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             #preloader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0b0f19; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; }
             .logo-animation-box { text-align: center; max-width: 450px; width: 100%; padding: 20px; }
             .animated-logo-svg { width: 180px; height: auto; margin-bottom: 25px; }
@@ -131,15 +98,35 @@ if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# --- MAIN DASHBOARD & DISCOVERED MODULE ROUTER ---
-MODULES = load_repository_modules()
+# --- DYNAMIC PMO MODULE ROUTER ---
+def load_all_modules():
+    modules = {}
+    search_dirs = [".", "modules", "views", "pages"]
+    
+    for s_dir in search_dirs:
+        if os.path.exists(s_dir):
+            for file in sorted(os.listdir(s_dir)):
+                if file.endswith(".py") and file not in ["app.py", "setup.py", "__init__.py"]:
+                    mod_key = file.replace(".py", "").replace("_", " ").title()
+                    file_path = os.path.join(s_dir, file)
+                    
+                    try:
+                        spec = importlib.util.spec_from_file_location(file.replace(".py", ""), file_path)
+                        mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(mod)
+                        modules[mod_key] = mod
+                    except Exception as e:
+                        st.sidebar.error(f"Error loading {file}: {e}")
+    return modules
+
+MODULES_MAP = load_all_modules()
 
 st.sidebar.title("📌 PMO Navigation")
 
-if MODULES:
-    selected_module_name = st.sidebar.radio(
+if MODULES_MAP:
+    selected_module = st.sidebar.radio(
         "Select Project View:",
-        options=list(MODULES.keys()),
+        options=list(MODULES_MAP.keys()),
         index=0
     )
     
@@ -150,13 +137,22 @@ if MODULES:
 
     st.sidebar.caption("GEView Enterprise PMO Dashboard v1.0")
 
-    # Render selected module execution logic
-    module_function = MODULES[selected_module_name]
-    try:
-        module_function()
-    except Exception as e:
-        st.error(f"Error executing module `{selected_module_name}`: {e}")
+    # Target and execute selected module function safely
+    active_module = MODULES_MAP[selected_module]
+    
+    # Try calling module entrypoints in order of standard naming
+    if hasattr(active_module, "render"):
+        active_module.render()
+    elif hasattr(active_module, "main"):
+        active_module.main()
+    elif hasattr(active_module, "show"):
+        active_module.show()
+    elif hasattr(active_module, "app"):
+        active_module.app()
+    else:
+        # Run top-level script contents if functions are not wrapped
+        st.write(f"### {selected_module}")
+        st.info(f"Module file loaded (`{active_module.__file__}`). Add a `render()` function inside this module to control layout execution.")
 else:
-    st.sidebar.warning("No modules found in repository.")
+    st.sidebar.warning("No modules detected.")
     st.title("GEView PMO Dashboard Home")
-    st.info("No sub-module `.py` files detected in repository root or modules directory.")
