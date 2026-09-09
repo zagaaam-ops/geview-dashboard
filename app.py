@@ -25,11 +25,12 @@ def render_login_page():
             submit = st.form_submit_button("Access PMO Dashboard", use_container_width=True)
             
             if submit:
-                if username and password:  
+                # Set your target username and password here
+                if username == "admin" and password == "pmo2026!":
                     st.session_state.authenticated = True
                     st.rerun()
                 else:
-                    st.error("Please enter valid credentials.")
+                    st.error("Invalid Username or Password")
 
 # --- AUTHENTICATION GATE ---
 if not st.session_state.authenticated:
@@ -38,9 +39,6 @@ if not st.session_state.authenticated:
 
 # --- SIDEBAR RADIO NAVIGATION ---
 st.sidebar.title("📌 PMO Navigation")
-
-# Place your module dict here or import it
-# MODULES = {...}
 
 selected_module = st.sidebar.radio(
     "Select Project View:",
