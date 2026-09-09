@@ -28,15 +28,33 @@ if "pmo_data" not in st.session_state:
             {"Code": "MOD_03", "Model": "Rooftop Micro Pole", "Unit": "site", "Rate": 22000.00},
         ]),
         "sites": pd.DataFrame([
-            {"Site ID": "RIY-101", "Region": "Riyadh", "Status": "Implementation", "Tower Model": "45m Monopole - Standard", "Budget (SAR)": 42500, "PO Number": "PO-2026-ABR-001", "PO Value (SAR)": 42500, "Vendor": "Abrar Telecom", "latitude": 24.7136, "longitude": 46.6753},
-            {"Site ID": "JED-204", "Region": "Jeddah", "Status": "Pending PM Site Approval", "Tower Model": "60m Lattice - Heavy Duty", "Budget (SAR)": 68000, "PO Number": "Unassigned", "PO Value (SAR)": 0, "Vendor": "Red Sea Infra", "latitude": 21.5433, "longitude": 39.1728},
-            {"Site ID": "DAM-302", "Region": "Dammam", "Status": "Pending PO Approval", "Tower Model": "45m Monopole - Standard", "Budget (SAR)": 42500, "PO Number": "Pending FM Approval", "PO Value (SAR)": 41000, "Vendor": "Gulf Fiber Tech", "latitude": 26.4207, "longitude": 50.0888},
+            {"Site ID": "RIY-101", "Region": "Riyadh", "Status": "Implementation", "Tower Model": "45m Monopole - Standard", "Budget (SAR)": 42500, "PO Number": "PO-2026-ABR-001", "PO Value (SAR)": 42500, "Vendor": "Abrar Telecom", "latitude": 24.7136, "longitude": 46.6753, "Design Approved": True},
+            {"Site ID": "JED-204", "Region": "Jeddah", "Status": "Pending PM Site Approval", "Tower Model": "60m Lattice - Heavy Duty", "Budget (SAR)": 68000, "PO Number": "Unassigned", "PO Value (SAR)": 0, "Vendor": "Red Sea Infra", "latitude": 21.5433, "longitude": 39.1728, "Design Approved": False},
+            {"Site ID": "DAM-302", "Region": "Dammam", "Status": "Pending PO Approval", "Tower Model": "45m Monopole - Standard", "Budget (SAR)": 42500, "PO Number": "Pending FM Approval", "PO Value (SAR)": 41000, "Vendor": "Gulf Fiber Tech", "latitude": 26.4207, "longitude": 50.0888, "Design Approved": False},
         ]),
         "purchase_orders": [
             {"PO Number": "PO-2026-ABR-001", "Vendor": "Abrar Telecom", "Site ID": "RIY-101", "PO Value (SAR)": 42500, "Status": "Approved by FM", "Created By": "PMO"},
             {"PO Number": "PO-REQ-002", "Vendor": "Gulf Fiber Tech", "Site ID": "DAM-302", "PO Value (SAR)": 41000, "Status": "Pending FM Approval", "Created By": "PMO"}
         ],
-        "extra_works": [],
+        "site_documents": {
+            "RIY-101": {
+                "1. Documents": [
+                    {"Filename": "Approved_Structural_Drawing_v1.pdf", "Uploaded By": "Project Engineer", "Date": "2026-08-10", "Category": "Engineering"},
+                    {"Filename": "Soil_Test_Report.pdf", "Uploaded By": "Vendor (Abrar)", "Date": "2026-08-05", "Category": "Survey"}
+                ],
+                "2. Implementation": [
+                    {"Filename": "Foundation_Pouring_Photo_1.jpg", "Uploaded By": "Site Supervisor", "Date": "2026-08-15", "Category": "Site Photo"},
+                    {"Filename": "Excavation_Log.pdf", "Uploaded By": "Vendor (Abrar)", "Date": "2026-08-12", "Category": "Progress Log"}
+                ],
+                "3. Finance Data": [
+                    {"Filename": "PO_PO-2026-ABR-001.pdf", "Uploaded By": "Finance Manager", "Date": "2026-08-01", "Category": "Purchase Order"}
+                ]
+            }
+        },
+        "design_reviews": [
+            {"Site ID": "RIY-101", "Vendor": "Abrar Telecom", "Drawing Ref": "DWG-RIY101-REV2", "PE Review": "Approved", "PM Signoff": "Approved", "Comments": "Soil capacity verified."},
+            {"Site ID": "JED-204", "Vendor": "Red Sea Infra", "Drawing Ref": "DWG-JED204-REV1", "PE Review": "Pending Review", "PM Signoff": "Pending", "Comments": "Awaiting wind load calculations."}
+        ],
         "vendors": pd.DataFrame([
             {"Vendor Name": "Abrar Telecom", "Active Sites": 1, "Completed Sites": 14, "Status": "Active Qualified"},
             {"Vendor Name": "Red Sea Infra", "Active Sites": 1, "Completed Sites": 8, "Status": "Active Qualified"},
@@ -137,9 +155,9 @@ if not st.session_state.authenticated:
             password = st.text_input("Password", type="password", value="pmo2026")
             role = st.selectbox("Role Perspective", [
                 "Project Manager (PMO)",
+                "Project / Site Engineer",
                 "Finance Manager",
-                "Vendor / Subcontractor",
-                "Civil Work Lead"
+                "Vendor / Subcontractor"
             ])
             submit = st.form_submit_button("Access Portal", use_container_width=True)
             if submit:
@@ -156,13 +174,13 @@ st.sidebar.markdown("## 📡 Project Plus")
 st.sidebar.caption(f"Active Role: **{st.session_state.user_role}**")
 
 if st.session_state.user_role == "Project Manager (PMO)":
-    nav_options = ["Bird's Eye PMO View", "Vendor Site Onboarding", "PO Creation & Workflow", "Vendor Management", "GIS Site Map"]
+    nav_options = ["Bird's Eye PMO View", "Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews", "Vendor Management", "GIS Site Map"]
+elif st.session_state.user_role == "Project / Site Engineer":
+    nav_options = ["Site Document Management", "Technical Design Reviews", "GIS Site Map"]
 elif st.session_state.user_role == "Finance Manager":
-    nav_options = ["Bird's Eye PMO View", "PO Creation & Workflow", "Vendor Management"]
-elif st.session_state.user_role == "Vendor / Subcontractor":
-    nav_options = ["Vendor Site Onboarding", "PO Creation & Workflow"]
-else:
-    nav_options = ["Bird's Eye PMO View", "Vendor Site Onboarding", "GIS Site Map"]
+    nav_options = ["Bird's Eye PMO View", "PO Creation & Workflow", "Site Document Management"]
+else:  # Vendor
+    nav_options = ["Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews"]
 
 selected_page = st.sidebar.radio("Navigation Menu:", nav_options)
 
@@ -241,7 +259,7 @@ elif selected_page == "Vendor Site Onboarding":
             new_site = pd.DataFrame([{
                 "Site ID": site_id, "Region": region, "Status": "Pending PM Site Approval",
                 "Tower Model": model_selected, "Budget (SAR)": rate, "PO Number": "Unassigned",
-                "PO Value (SAR)": 0, "Vendor": v_name, "latitude": lat, "longitude": lon
+                "PO Value (SAR)": 0, "Vendor": v_name, "latitude": lat, "longitude": lon, "Design Approved": False
             }])
             st.session_state.pmo_data["sites"] = pd.concat([st.session_state.pmo_data["sites"], new_site], ignore_index=True)
             st.success(f"Site **{site_id}** submitted! Budget set to **{rate:,.2f} SAR** based on Site Model. Awaiting PM Approval.")
@@ -265,7 +283,7 @@ elif selected_page == "Vendor Site Onboarding":
 # ==========================================
 elif selected_page == "PO Creation & Workflow":
     st.title("💳 Purchase Order Workflow Governance")
-    st.caption("PM defines explicit PO Value -> FM approves -> System issues official PO# to Vendor.")
+    st.caption("PM defines explicit PO Value -> FM approves -> System issues official PO# and auto-creates site document folders.")
 
     col1, col2 = st.columns(2)
 
@@ -315,12 +333,160 @@ elif selected_page == "PO Creation & Workflow":
                         df_s.loc[df_s["Site ID"] == site_id, "PO Number"] = gen_po_num
                         df_s.loc[df_s["Site ID"] == site_id, "Status"] = "Implementation"
                         st.session_state.pmo_data["sites"] = df_s
+
+                        # AUTO-CREATE SITE DIRECTORY STRUCTURE
+                        if site_id not in st.session_state.pmo_data["site_documents"]:
+                            st.session_state.pmo_data["site_documents"][site_id] = {
+                                "1. Documents": [],
+                                "2. Implementation": [],
+                                "3. Finance Data": [
+                                    {"Filename": f"{gen_po_num}_Approved.pdf", "Uploaded By": "Finance System", "Date": "2026-09-09", "Category": "Purchase Order"}
+                                ]
+                            }
                         break
-                st.success(f"PO approved! Issued Official **{gen_po_num}** to Vendor.")
+                st.success(f"PO approved! Issued **{gen_po_num}**. Automated folder directories created for **{site_id}**!")
                 st.rerun()
 
 # ==========================================
-# PAGE 4: VENDOR MANAGEMENT
+# PAGE 4: PHASE 3 - SITE DOCUMENT MANAGEMENT
+# ==========================================
+elif selected_page == "Site Document Management":
+    st.title("📂 Automated Site Document Directory")
+    st.caption("Role-based access control across standard site subdirectories.")
+
+    active_sites = st.session_state.pmo_data["sites"]["Site ID"].tolist()
+    sel_site = st.selectbox("Select Active Site Directory:", active_sites)
+
+    # Initialize directories if missing
+    if sel_site not in st.session_state.pmo_data["site_documents"]:
+        st.session_state.pmo_data["site_documents"][sel_site] = {
+            "1. Documents": [], "2. Implementation": [], "3. Finance Data": []
+        }
+
+    site_folders = st.session_state.pmo_data["site_documents"][sel_site]
+
+    f_tab1, f_tab2, f_tab3 = st.tabs(["1. Documents (Engineering & Drawings)", "2. Implementation (Photos & Logs)", "3. Finance Data (PO & Invoices)"])
+
+    user_role = st.session_state.user_role
+
+    with f_tab1:
+        st.subheader("1. Documents Directory")
+        st.caption("Contains approved drawings and engineering calculations.")
+        if len(site_folders["1. Documents"]) > 0:
+            st.dataframe(pd.DataFrame(site_folders["1. Documents"]), use_container_width=True)
+        else:
+            st.info("No documents uploaded yet.")
+
+        if user_role in ["Project / Site Engineer", "Project Manager (PMO)"]:
+            st.markdown("---")
+            st.markdown("**Upload Engineering File** *(Engineer/PM Access)*")
+            doc_file = st.file_uploader("Choose PDF or CAD file", key="u_doc")
+            doc_cat = st.selectbox("Document Category", ["Approved Drawing", "Soil Report", "Structural Calculation", "As-Built"], key="c_doc")
+            if st.button("Upload to 1. Documents", key="b_doc") and doc_file is not None:
+                site_folders["1. Documents"].append({
+                    "Filename": doc_file.name, "Uploaded By": user_role, "Date": "2026-09-09", "Category": doc_cat
+                })
+                st.success(f"File **{doc_file.name}** uploaded to `1. Documents`!")
+                st.rerun()
+        else:
+            st.warning("🔒 Vendors and Finance staff have Read-Only permissions in this folder.")
+
+    with f_tab2:
+        st.subheader("2. Implementation Directory")
+        st.caption("Contains field site supervisor progress logs and physical photos.")
+        if len(site_folders["2. Implementation"]) > 0:
+            st.dataframe(pd.DataFrame(site_folders["2. Implementation"]), use_container_width=True)
+        else:
+            st.info("No implementation files uploaded yet.")
+
+        st.markdown("---")
+        st.markdown("**Upload Field Implementation Photo/Log** *(All Field Roles)*")
+        imp_file = st.file_uploader("Choose Photo/Report", key="u_imp")
+        imp_cat = st.selectbox("Category", ["Foundation Photo", "Erection Photo", "Safety Checklist", "Progress Log"], key="c_imp")
+        if st.button("Upload to 2. Implementation", key="b_imp") and imp_file is not None:
+            site_folders["2. Implementation"].append({
+                "Filename": imp_file.name, "Uploaded By": user_role, "Date": "2026-09-09", "Category": imp_cat
+            })
+            st.success(f"File **{imp_file.name}** uploaded to `2. Implementation`!")
+            st.rerun()
+
+    with f_tab3:
+        st.subheader("3. Finance Data Directory")
+        st.caption("Contains official POs, extra works approvals, and payment records.")
+        if len(site_folders["3. Finance Data"]) > 0:
+            st.dataframe(pd.DataFrame(site_folders["3. Finance Data"]), use_container_width=True)
+        else:
+            st.info("No financial documents in directory.")
+
+        if user_role in ["Finance Manager", "Project Manager (PMO)"]:
+            st.markdown("---")
+            st.markdown("**Upload Financial Document** *(PM / FM Access)*")
+            fin_file = st.file_uploader("Choose Invoice / Receipt", key="u_fin")
+            if st.button("Upload to 3. Finance Data", key="b_fin") and fin_file is not None:
+                site_folders["3. Finance Data"].append({
+                    "Filename": fin_file.name, "Uploaded By": user_role, "Date": "2026-09-09", "Category": "Financial Record"
+                })
+                st.success(f"File **{fin_file.name}** uploaded to `3. Finance Data`!")
+                st.rerun()
+
+# ==========================================
+# PAGE 5: PHASE 3 - TECHNICAL DESIGN REVIEWS
+# ==========================================
+elif selected_page == "Technical Design Reviews":
+    st.title("✏️ Technical Design Review & Approval Chain")
+    st.caption("Vendor submits layout drawings -> Project Engineer verifies -> PM grants final design approval.")
+
+    d_tab1, d_tab2 = st.tabs(["Submit Layout Design", "Review & Approval Queue"])
+
+    with d_tab1:
+        st.subheader("Vendor Design Submission")
+        d_site = st.selectbox("Select Site", st.session_state.pmo_data["sites"]["Site ID"].tolist(), key="d_site_sel")
+        dwg_ref = st.text_input("Drawing Reference Number", value="DWG-RIY101-REV3")
+        dwg_file = st.file_uploader("Upload Structural/Layout Drawing (PDF/DWG)", key="dwg_up")
+
+        if st.button("📤 Submit Design for Engineering Review"):
+            st.session_state.pmo_data["design_reviews"].append({
+                "Site ID": d_site, "Vendor": st.session_state.user_role, "Drawing Ref": dwg_ref,
+                "PE Review": "Pending Review", "PM Signoff": "Pending", "Comments": "Submitted for verification."
+            })
+            st.success(f"Design **{dwg_ref}** submitted into engineering review queue!")
+
+    with d_tab2:
+        st.subheader("Engineering Approval Chain")
+        df_rev = pd.DataFrame(st.session_state.pmo_data["design_reviews"])
+        st.dataframe(df_rev, use_container_width=True)
+
+        if len(df_rev) > 0:
+            target_ref = st.selectbox("Select Review Item", df_rev["Drawing Ref"].tolist())
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.session_state.user_role in ["Project / Site Engineer", "Project Manager (PMO)"]:
+                    if st.button("🔬 Project Engineer: Verify & Pass Design"):
+                        for item in st.session_state.pmo_data["design_reviews"]:
+                            if item["Drawing Ref"] == target_ref:
+                                item["PE Review"] = "Approved"
+                                item["Comments"] = "Verified by Project Engineer."
+                                break
+                        st.success("Project Engineer review complete!")
+                        st.rerun()
+
+            with col2:
+                if st.session_state.user_role in ["Project Manager (PMO)"]:
+                    if st.button("✅ PM: Final Design Sign-off"):
+                        for item in st.session_state.pmo_data["design_reviews"]:
+                            if item["Drawing Ref"] == target_ref:
+                                item["PM Signoff"] = "Approved"
+                                s_id = item["Site ID"]
+                                df_s = st.session_state.pmo_data["sites"]
+                                df_s.loc[df_s["Site ID"] == s_id, "Design Approved"] = True
+                                st.session_state.pmo_data["sites"] = df_s
+                                break
+                        st.success("Final PM Design Approval Granted!")
+                        st.rerun()
+
+# ==========================================
+# PAGE 6: VENDOR MANAGEMENT
 # ==========================================
 elif selected_page == "Vendor Management":
     st.title("📖 Vendor Management & Price Book")
@@ -333,7 +499,7 @@ elif selected_page == "Vendor Management":
     st.dataframe(st.session_state.pmo_data["vendors"], use_container_width=True)
 
 # ==========================================
-# PAGE 5: GIS MAP
+# PAGE 7: GIS MAP
 # ==========================================
 elif selected_page == "GIS Site Map":
     st.title("🗺️ Interactive GIS Telecom Map")
