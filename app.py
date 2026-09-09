@@ -377,9 +377,9 @@ elif selected_page == "Site Document Management":
         else:
             st.info("No documents uploaded yet.")
 
-        if user_role in ["Project / Site Engineer", "Project Manager (PMO)"]:
+        if user_role in ["Project / Site Engineer", "Project Manager (PMO)", "Vendor / Subcontractor"]:
             st.markdown("---")
-            st.markdown("**Upload Engineering File** *(Engineer/PM Access)*")
+            st.markdown("**Upload Engineering File** *(Engineer/PM/Vendor Access)*")
             doc_file = st.file_uploader("Choose PDF or CAD file", key="u_doc")
             doc_cat = st.selectbox("Document Category", ["Approved Drawing", "Soil Report", "Structural Calculation", "As-Built"], key="c_doc")
             if st.button("Upload to 1. Documents", key="b_doc") and doc_file is not None:
