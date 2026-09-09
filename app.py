@@ -3,7 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="GEView System Dashboard", layout="wide")
 
-# Fallback dataset if database connection isn't configured
 df = pd.DataFrame({
     "Site_ID": [f"RIY-{i:03d}" for i in range(101, 111)],
     "Site_Name": [f"Site Alpha {i}" for i in range(1, 11)],
@@ -105,6 +104,6 @@ try:
             pdf_data = generate_pdf_report(df)
             st.download_button("Download PDF", data=pdf_data if pdf_data else b"", file_name="GEView_Report.pdf", mime="application/pdf")
 except ModuleNotFoundError as e:
-    st.error(f"Missing package for view `{selected_view}`: {str(e)}. Streamlit Cloud is installing dependencies...")
+    st.error(f"Missing dependency for view '{selected_view}': {str(e)}.")
 except Exception as e:
-    st.error(f"Error rendering `{selected_view}`: {str(e)}")
+    st.error(f"Error rendering '{selected_view}': {str(e)}")
