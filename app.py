@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import time
 import os
+import importlib.util
 import runpy
 
 # --- PAGE CONFIGURATION ---
@@ -12,7 +13,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- SESSION STATES ---
+# --- GLOBAL PMO DATA STORAGE ---
+if "pmo_data" not in st.session_state:
+    st.session_state.pmo_data = {
+        "price_book": {
+            "EXC_01": {"description": "Site Excavation & Backfilling (Class A)", "unit": "m³", "rate": 45.00},
+            "CON_01": {"description": "Reinforced Concrete Foundation (C35/40)", "unit": "m³", "rate": 350.00},
+            "TOW_01": {"description": "45m Monopole Tower Supply & Erection", "unit": "lot", "rate": 18500.00},
+            "TOW_02": {"description": "4-Legged Self-Supporting Tower (60m)", "unit": "lot", "rate": 32000.00},
+            "FEN_01": {"description": "Chain Link Perimeter Fencing with Gate", "unit": "m", "rate": 85.00},
+            "GND_01": {"description": "Copper Earth Ring & Grounding Pit", "unit": "system", "rate": 1200.00},
+            "PWR_01": {"description": "Commercial AC Power Hookup & DB Cabinet", "unit": "lot", "rate": 4500.00},
+        },
+        "sites": {},
+        "extra_works": [],
+        "approvals": []
+    }
+
 if "preloader_shown" not in st.session_state:
     st.session_state.preloader_shown = False
 
@@ -20,9 +37,9 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if "user_role" not in st.session_state:
-    st.session_state.user_role = "Project Manager"
+    st.session_state.user_role = "Project Manager (PMO)"
 
-# --- FULLPAGE PRELOADER (PROJECT PLUS BRANDING) ---
+# --- FULLPAGE PRELOADER ---
 if not st.session_state.preloader_shown:
     fullpage_preloader_html = """
     <!DOCTYPE html>
@@ -75,19 +92,25 @@ if not st.session_state.preloader_shown:
     st.session_state.preloader_shown = True
     st.rerun()
 
-# --- AUTHENTICATION & RBAC GATE ---
+# --- AUTHENTICATION GATE ---
 def render_login_page():
     st.markdown("<h1 style='text-align: center; color: #10b981;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #94a3b8;'>Telecom Infrastructure & Civil Works Governance System</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94a3b8;'>Telecom Infrastructure & Civil Works Governance Platform</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("pmo_login_form"):
-            st.subheader("Enterprise Login")
-            username = st.text_input("User Identification")
-            password = st.text_input("Password", type="password")
-            role = st.selectbox("Role Perspective", ["Project Manager (PMO)", "Civil Work Lead", "Vendor / Subcontractor", "Finance Manager", "HR / Safety Lead"])
-            submit = st.form_submit_button("Access Portal", use_container_width=True)
+            st.subheader("Enterprise Access Login")
+            username = st.text_input("User ID", value="admin")
+            password = st.text_input("Password", type="password", value="pmo2026")
+            role = st.selectbox("Active Role Perspective", [
+                "Project Manager (PMO)",
+                "Civil Work Lead",
+                "Vendor / Subcontractor",
+                "Finance Manager",
+                "HR / Safety Lead"
+            ])
+            submit = st.form_submit_button("Log In to Portal", use_container_width=True)
             
             if submit:
                 clean_user = username.strip()
@@ -103,8 +126,8 @@ if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# --- MODULE DISCOVERY & DISPATCH ---
-def discover_pmo_modules():
+# --- DISCOVER MODULE FILES ---
+def get_available_modules():
     modules = {}
     search_dirs = [".", "modules", "views", "pages"]
     
@@ -116,32 +139,59 @@ def discover_pmo_modules():
                     modules[title] = os.path.join(s_dir, file)
     return modules
 
-MODULES = discover_pmo_modules()
+MODULES = get_available_modules()
 
-# --- SIDEBAR & RBAC DISPLAY ---
+# --- SIDEBAR & RBAC ---
 st.sidebar.markdown("## 📡 Project Plus")
-st.sidebar.caption(f"Role: **{st.session_state.user_role}**")
+st.sidebar.caption(f"Active Role: **{st.session_state.user_role}**")
 
-if MODULES:
-    selected_module_title = st.sidebar.radio(
-        "Navigation:",
-        options=list(MODULES.keys()),
-        index=0
-    )
+# Define RBAC Permissions per Role
+RBAC_RULES = {
+    "Project Manager (PMO)": list(MODULES.keys()),
+    "Civil Work Lead": [m for m in MODULES.keys() if m in ["Site Survey", "Boq Extra Works", "Acceptance", "Gis Map", "Workflow", "Docs"]],
+    "Vendor / Subcontractor": [m for m in MODULES.keys() if m in ["Supply Chain", "Vendor Compare", "Boq Extra Works", "Acceptance"]],
+    "Finance Manager": [m for m in MODULES.keys() if m in ["Finance", "Evm", "Evm Analytics", "Price Book", "Boq Export"]],
+    "HR / Safety Lead": [m for m in MODULES.keys() if m in ["Hr", "Hr Certifications", "Alerts"]]
+}
+
+allowed_modules = RBAC_RULES.get(st.session_state.user_role, list(MODULES.keys()))
+
+if not allowed_modules:
+    allowed_modules = list(MODULES.keys())
+
+selected_module_title = st.sidebar.radio(
+    "Navigation:",
+    options=allowed_modules,
+    index=0
+)
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Logout / Switch Role", use_container_width=True):
+    st.session_state.authenticated = False
+    st.rerun()
+
+st.sidebar.caption("Project Plus Infrastructure Engine v2.0")
+
+# --- UNIFIED MODULE DISPATCHER ---
+file_path = MODULES[selected_module_title]
+
+try:
+    # 1. Try importing as a python module and executing any standard entrypoint function
+    spec = importlib.util.spec_from_file_location(selected_module_title.replace(" ", "_"), file_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
     
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🚪 Switch User / Logout", use_container_width=True):
-        st.session_state.authenticated = False
-        st.rerun()
-
-    st.sidebar.caption("Project Plus Infrastructure Engine v2.0")
-
-    # Execute module context
-    file_path = MODULES[selected_module_title]
-    try:
+    entrypoint_found = False
+    for fn in ["render_site_survey", "render", "main", "show", "app"]:
+        if hasattr(mod, fn):
+            getattr(mod, fn)()
+            entrypoint_found = True
+            break
+            
+    # 2. Fallback: run script directly via runpy
+    if not entrypoint_found:
         runpy.run_path(file_path, run_name="__main__")
-    except Exception as e:
-        st.error(f"Error executing module `{selected_module_title}`: {e}")
-else:
-    st.sidebar.warning("No enterprise modules located.")
-    st.title("Project Plus Telecom Workspace")
+
+except Exception as e:
+    st.error(f"Error rendering module **{selected_module_title}**: `{e}`")
+    st.info("Check module entrypoint structure or file syntax.")
