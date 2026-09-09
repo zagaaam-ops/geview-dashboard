@@ -11,8 +11,8 @@
 | Phase | Description | Status | Target Deliverables |
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | **Core Framework & Access Control** | 🟢 **COMPLETED** | RBAC Login, Project Plus Preloader, Multi-module Router, Layout Architecture |
-| **Phase 2** | **Site Survey & Dynamic BOQ Engine** | 🟡 **IN PROGRESS** | Master Price Book, Site Survey Forms, Automated Site BOQ Generation |
-| **Phase 3** | **Extra Works (EW) & Workflow Governance** | ⚪ **PLANNED** | Out-of-Scope EW Upload, Photo Evidence Logs, Multi-tier Approval Chain |
+| **Phase 2** | **Site Survey & Dynamic BOQ Engine** | 🟢 **COMPLETED** | Master Price Book, Site Survey Forms, Automated Site BOQ Generation |
+| **Phase 3** | **Extra Works (EW) & Workflow Governance** | 🟡 **IN PROGRESS** | Out-of-Scope EW Upload, Photo Evidence Logs, Multi-tier Approval Chain |
 | **Phase 4** | **Vendor Portal & EVM Analytics** | ⚪ **PLANNED** | Subcontractor PO Tracking, Milestone Completion, SPI/CPI Earned Value Metrics, GIS |
 
 ---
@@ -27,15 +27,15 @@
 
 ---
 
-### 🟡 Phase 2: Site Survey & Dynamic BOQ Engine [CURRENT FOCUS]
-- [ ] **Master Price Book:** Database of standardized telecom civil works items, units, and base rates.
-- [ ] **Site Survey Input Forms:** Field input module capturing tower type, foundation volume, soil conditions, fencing, and power requirements.
-- [ ] **Automated Site BOQ Generator:** Algorithmic compilation of site-specific Bills of Quantities mapped to client contracts.
-- [ ] **BOQ Export Module:** Exporting generated BOQ to structured PDF/Excel for client submission.
+### 🟢 Phase 2: Site Survey & Dynamic BOQ Engine [DONE]
+- [x] **Master Price Book:** Integrated catalog of telecom civil works items, units, and rates.
+- [x] **Site Survey Input Forms:** Field input capturing tower type, foundation volume, soil conditions, fencing, and power hookup.
+- [x] **Automated Site BOQ Generator:** Algorithmic site BOQ generator mapped to site parameters and soil adjustments.
+- [x] **BOQ Export:** Instant CSV export capability for generated site BOQs.
 
 ---
 
-### ⚪ Phase 3: Extra Works (EW) & Workflow Governance [NEXT]
+### 🟡 Phase 3: Extra Works (EW) & Workflow Governance [CURRENT FOCUS]
 - [ ] **Extra Work (EW) Request Portal:** Civil lead interface to request out-of-scope site variations with photographic proof.
 - [ ] **Sequential Approval Engine:**
   $$\text{Field/Civil Engineer} \longrightarrow \text{Project Manager Verification} \longrightarrow \text{Finance Budget Sign-Off}$$
