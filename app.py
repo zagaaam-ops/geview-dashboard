@@ -520,14 +520,18 @@ elif selected_page == "Field Milestones & Invoicing Gate":
             sel_m = st.selectbox("Select PM-Approved Milestone for Invoicing", approved_milestones["Milestone Name"].tolist())
             m_row = approved_milestones[approved_milestones["Milestone Name"] == sel_m].iloc[0]
 
-            st.info(f"Unlocked Milestone Value: **{m_row['Amount (SAR)']:,.2f} SAR**")
+            m_val = m_row.get('Amount (SAR)', 0.0)
+            if isinstance(m_val, (int, float)):
+                st.info(f"Unlocked Milestone Value: **{m_val:,.2f} SAR**")
+            else:
+                st.info(f"Unlocked Milestone Status: **{m_val}**")
             inv_num = st.text_input("Invoice Reference Number", value="INV-2026-001")
             inv_file = st.file_uploader("Attach Invoice PDF Document")
 
             if st.button("💳 Submit Invoice to Finance"):
                 st.session_state.pmo_data["invoices"].append({
                     "Invoice #": inv_num, "Site ID": m_row["Site ID"], "Milestone": sel_m,
-                    "Amount (SAR)": m_row["Amount (SAR)"], "Status": "Pending FM Audit", "Vendor": st.session_state.user_role
+                    "Amount (SAR)": m_row.get("Amount (SAR)", 0.0), "Status": "Pending FM Audit", "Vendor": st.session_state.user_role
                 })
                 st.success(f"Invoice **{inv_num}** submitted for FM audit!")
                 st.rerun()
