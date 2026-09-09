@@ -1,13 +1,3 @@
 streamlit
 pandas
-openpyxl
-plotly
-folium
-streamlit-folium
-psycopg2-binary
-reportlab
-reportlab
-pymysql
-sqlalchemy
-psycopg2-binary
-sqlalchemy
+fpdf2
