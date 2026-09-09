@@ -43,8 +43,7 @@ if "pmo_data" not in st.session_state:
                     {"Filename": "Soil_Test_Report.pdf", "Uploaded By": "Vendor (Abrar)", "Date": "2026-08-05", "Category": "Survey"}
                 ],
                 "2. Implementation": [
-                    {"Filename": "Foundation_Pouring_Photo_1.jpg", "Uploaded By": "Site Supervisor", "Date": "2026-08-15", "Category": "Site Photo"},
-                    {"Filename": "Excavation_Log.pdf", "Uploaded By": "Vendor (Abrar)", "Date": "2026-08-12", "Category": "Progress Log"}
+                    {"Filename": "Foundation_Pouring_Photo_1.jpg", "Uploaded By": "Site Supervisor", "Date": "2026-08-15", "Category": "Site Photo"}
                 ],
                 "3. Finance Data": [
                     {"Filename": "PO_PO-2026-ABR-001.pdf", "Uploaded By": "Finance Manager", "Date": "2026-08-01", "Category": "Purchase Order"}
@@ -52,8 +51,18 @@ if "pmo_data" not in st.session_state:
             }
         },
         "design_reviews": [
-            {"Site ID": "RIY-101", "Vendor": "Abrar Telecom", "Drawing Ref": "DWG-RIY101-REV2", "PE Review": "Approved", "PM Signoff": "Approved", "Comments": "Soil capacity verified."},
-            {"Site ID": "JED-204", "Vendor": "Red Sea Infra", "Drawing Ref": "DWG-JED204-REV1", "PE Review": "Pending Review", "PM Signoff": "Pending", "Comments": "Awaiting wind load calculations."}
+            {"Site ID": "RIY-101", "Vendor": "Abrar Telecom", "Drawing Ref": "DWG-RIY101-REV2", "PE Review": "Approved", "PM Signoff": "Approved", "Comments": "Soil capacity verified."}
+        ],
+        "milestones": [
+            {"Site ID": "RIY-101", "Milestone Name": "Civil Foundation & Anchor Bolts", "Value Share (%)": 30, "Amount (SAR)": 12750.00, "Vendor Status": "Submitted", "Engineer Verification": "Verified", "PM Approval": "Approved"},
+            {"Site ID": "RIY-101", "Milestone Name": "Tower Erection & Painting", "Value Share (%)": 40, "Amount (SAR)": 17000.00, "Vendor Status": "In Progress", "Engineer Verification": "Pending", "PM Approval": "Pending"},
+            {"Site ID": "RIY-101", "Milestone Name": "Handover & Acceptance Certificate", "Value Share (%)": 30, "Amount (SAR)": 12750.00, "Vendor Status": "Not Started", "Engineer Verification": "Pending", "PM Approval": "Pending"}
+        ],
+        "invoices": [
+            {"Invoice #": "INV-ABR-01", "Site ID": "RIY-101", "Milestone": "Civil Foundation & Anchor Bolts", "Amount (SAR)": 12750.00, "Status": "Pending FM Audit", "Vendor": "Abrar Telecom"}
+        ],
+        "extra_works": [
+            {"Site ID": "RIY-101", "Description": "Hard Rock Excavation Beyond Depth", "Requested (SAR)": 5000.00, "Cap Limit (10%)": 4250.00, "Over Cap": True, "Status": "Pending Executive PM Review"}
         ],
         "vendors": pd.DataFrame([
             {"Vendor Name": "Abrar Telecom", "Active Sites": 1, "Completed Sites": 14, "Status": "Active Qualified"},
@@ -174,13 +183,13 @@ st.sidebar.markdown("## 📡 Project Plus")
 st.sidebar.caption(f"Active Role: **{st.session_state.user_role}**")
 
 if st.session_state.user_role == "Project Manager (PMO)":
-    nav_options = ["Bird's Eye PMO View", "Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews", "Vendor Management", "GIS Site Map"]
+    nav_options = ["Bird's Eye PMO View", "Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews", "Field Milestones & Invoicing Gate", "Extra Works (EW) Governance", "Vendor Management", "GIS Site Map"]
 elif st.session_state.user_role == "Project / Site Engineer":
-    nav_options = ["Site Document Management", "Technical Design Reviews", "GIS Site Map"]
+    nav_options = ["Site Document Management", "Technical Design Reviews", "Field Milestones & Invoicing Gate", "GIS Site Map"]
 elif st.session_state.user_role == "Finance Manager":
-    nav_options = ["Bird's Eye PMO View", "PO Creation & Workflow", "Site Document Management"]
+    nav_options = ["Bird's Eye PMO View", "PO Creation & Workflow", "Field Milestones & Invoicing Gate", "Extra Works (EW) Governance"]
 else:  # Vendor
-    nav_options = ["Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews"]
+    nav_options = ["Vendor Site Onboarding", "PO Creation & Workflow", "Site Document Management", "Technical Design Reviews", "Field Milestones & Invoicing Gate", "Extra Works (EW) Governance"]
 
 selected_page = st.sidebar.radio("Navigation Menu:", nav_options)
 
@@ -348,7 +357,7 @@ elif selected_page == "PO Creation & Workflow":
                 st.rerun()
 
 # ==========================================
-# PAGE 4: PHASE 3 - SITE DOCUMENT MANAGEMENT
+# PAGE 4: SITE DOCUMENT MANAGEMENT
 # ==========================================
 elif selected_page == "Site Document Management":
     st.title("📂 Automated Site Document Directory")
@@ -357,21 +366,18 @@ elif selected_page == "Site Document Management":
     active_sites = st.session_state.pmo_data["sites"]["Site ID"].tolist()
     sel_site = st.selectbox("Select Active Site Directory:", active_sites)
 
-    # Initialize directories if missing
     if sel_site not in st.session_state.pmo_data["site_documents"]:
         st.session_state.pmo_data["site_documents"][sel_site] = {
             "1. Documents": [], "2. Implementation": [], "3. Finance Data": []
         }
 
     site_folders = st.session_state.pmo_data["site_documents"][sel_site]
-
     f_tab1, f_tab2, f_tab3 = st.tabs(["1. Documents (Engineering & Drawings)", "2. Implementation (Photos & Logs)", "3. Finance Data (PO & Invoices)"])
-
     user_role = st.session_state.user_role
 
     with f_tab1:
         st.subheader("1. Documents Directory")
-        st.caption("Contains approved drawings and engineering calculations.")
+        st.caption("Contains approved drawings, soil reports, and engineering calculations.")
         if len(site_folders["1. Documents"]) > 0:
             st.dataframe(pd.DataFrame(site_folders["1. Documents"]), use_container_width=True)
         else:
@@ -388,8 +394,6 @@ elif selected_page == "Site Document Management":
                 })
                 st.success(f"File **{doc_file.name}** uploaded to `1. Documents`!")
                 st.rerun()
-        else:
-            st.warning("🔒 Vendors and Finance staff have Read-Only permissions in this folder.")
 
     with f_tab2:
         st.subheader("2. Implementation Directory")
@@ -418,19 +422,8 @@ elif selected_page == "Site Document Management":
         else:
             st.info("No financial documents in directory.")
 
-        if user_role in ["Finance Manager", "Project Manager (PMO)"]:
-            st.markdown("---")
-            st.markdown("**Upload Financial Document** *(PM / FM Access)*")
-            fin_file = st.file_uploader("Choose Invoice / Receipt", key="u_fin")
-            if st.button("Upload to 3. Finance Data", key="b_fin") and fin_file is not None:
-                site_folders["3. Finance Data"].append({
-                    "Filename": fin_file.name, "Uploaded By": user_role, "Date": "2026-09-09", "Category": "Financial Record"
-                })
-                st.success(f"File **{fin_file.name}** uploaded to `3. Finance Data`!")
-                st.rerun()
-
 # ==========================================
-# PAGE 5: PHASE 3 - TECHNICAL DESIGN REVIEWS
+# PAGE 5: TECHNICAL DESIGN REVIEWS
 # ==========================================
 elif selected_page == "Technical Design Reviews":
     st.title("✏️ Technical Design Review & Approval Chain")
@@ -486,7 +479,144 @@ elif selected_page == "Technical Design Reviews":
                         st.rerun()
 
 # ==========================================
-# PAGE 6: VENDOR MANAGEMENT
+# PAGE 6: PHASE 4 - FIELD MILESTONES & INVOICING GATE
+# ==========================================
+elif selected_page == "Field Milestones & Invoicing Gate":
+    st.title("🎯 Field Milestones & Invoice Hard-Lock Gate")
+    st.caption("Vendors cannot submit invoices until corresponding field milestones receive PM Sign-off.")
+
+    m_tab1, m_tab2, m_tab3 = st.tabs(["1. Milestone Verification Chain", "2. Submit Invoice (Gated)", "3. FM Payment Audit"])
+
+    with m_tab1:
+        st.subheader("Field Progress Milestones")
+        df_m = pd.DataFrame(st.session_state.pmo_data["milestones"])
+        st.dataframe(df_m, use_container_width=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.session_state.user_role in ["Project / Site Engineer", "Project Manager (PMO)"]:
+                target_m = st.selectbox("Select Milestone to Verify", df_m["Milestone Name"].tolist(), key="m_ver_sel")
+                if st.button("👷 Site Engineer: Verify Progress"):
+                    for m in st.session_state.pmo_data["milestones"]:
+                        if m["Milestone Name"] == target_m:
+                            m["Engineer Verification"] = "Verified"
+                            break
+                    st.success("Milestone field verification recorded!")
+                    st.rerun()
+
+        with col2:
+            if st.session_state.user_role == "Project Manager (PMO)":
+                target_m_pm = st.selectbox("Select Milestone to Sign-Off", df_m["Milestone Name"].tolist(), key="m_pm_sel")
+                if st.button("✅ PM: Grant Milestone Sign-off"):
+                    for m in st.session_state.pmo_data["milestones"]:
+                        if m["Milestone Name"] == target_m_pm:
+                            m["PM Approval"] = "Approved"
+                            break
+                    st.success("Milestone signed off! Invoice submission unlocked for Vendor.")
+                    st.rerun()
+
+    with m_tab2:
+        st.subheader("Vendor Invoice Submission Portal")
+        df_m = pd.DataFrame(st.session_state.pmo_data["milestones"])
+        approved_milestones = df_m[df_m["PM Approval"] == "Approved"]
+
+        if len(approved_milestones) > 0:
+            sel_m = st.selectbox("Select PM-Approved Milestone for Invoicing", approved_milestones["Milestone Name"].tolist())
+            m_row = approved_milestones[approved_milestones["Milestone Name"] == sel_m].iloc[0]
+
+            st.info(f"Unlocked Milestone Value: **{m_row['Amount (SAR)']:,.2f} SAR**")
+            inv_num = st.text_input("Invoice Reference Number", value="INV-2026-001")
+            inv_file = st.file_uploader("Attach Invoice PDF Document")
+
+            if st.button("💳 Submit Invoice to Finance"):
+                st.session_state.pmo_data["invoices"].append({
+                    "Invoice #": inv_num, "Site ID": m_row["Site ID"], "Milestone": sel_m,
+                    "Amount (SAR)": m_row["Amount (SAR)"], "Status": "Pending FM Audit", "Vendor": st.session_state.user_role
+                })
+                st.success(f"Invoice **{inv_num}** submitted for FM audit!")
+                st.rerun()
+        else:
+            st.warning("🔒 Invoice Submission Locked: No milestones have received PM approval yet.")
+
+    with m_tab3:
+        st.subheader("Finance Manager Payment Processing")
+        df_inv = pd.DataFrame(st.session_state.pmo_data["invoices"])
+        st.dataframe(df_inv, use_container_width=True)
+
+        if st.session_state.user_role in ["Finance Manager", "Project Manager (PMO)"]:
+            pending_invs = df_inv[df_inv["Status"] == "Pending FM Audit"]
+            if len(pending_invs) > 0:
+                inv_to_pay = st.selectbox("Select Invoice for Payment Approval", pending_invs["Invoice #"].tolist())
+                if st.button("💰 FM: Authorize & Tag as PAID"):
+                    for inv in st.session_state.pmo_data["invoices"]:
+                        if inv["Invoice #"] == inv_to_pay:
+                            inv["Status"] = "PAID"
+                            break
+                    st.success(f"Invoice **{inv_to_pay}** audited and tagged as PAID!")
+                    st.rerun()
+
+# ==========================================
+# PAGE 7: PHASE 4 - EXTRA WORKS (EW) GOVERNANCE
+# ==========================================
+elif selected_page == "Extra Works (EW) Governance":
+    st.title("⚠️ Extra Works (EW) & Change Order Control")
+    st.caption("Automatic 10% threshold cap triggers executive PM review to prevent budget overruns.")
+
+    ew_tab1, ew_tab2 = st.tabs(["Submit EW Request", "Executive Review Queue"])
+
+    with ew_tab1:
+        st.subheader("Log Extra Work Request")
+        ew_site = st.selectbox("Select Site", st.session_state.pmo_data["sites"]["Site ID"].tolist(), key="ew_site_sel")
+        site_budget = st.session_state.pmo_data["sites"].loc[st.session_state.pmo_data["sites"]["Site ID"] == ew_site, "Budget (SAR)"].values[0]
+        cap_10 = site_budget * 0.10
+
+        st.info(f"Site Base Budget: **{site_budget:,.2f} SAR** | 10% Executive Cap Limit: **{cap_10:,.2f} SAR**")
+
+        desc = st.text_area("Extra Work Scope Description", value="Additional depth excavation in hard rock formation")
+        req_val = st.number_input("Requested Value (SAR)", value=5000.00, step=500.0)
+
+        if st.button("🚨 Submit Change Order"):
+            is_over = req_val > cap_10
+            st.session_state.pmo_data["extra_works"].append({
+                "Site ID": ew_site, "Description": desc, "Requested (SAR)": req_val,
+                "Cap Limit (10%)": cap_10, "Over Cap": is_over,
+                "Status": "Pending Executive PM Review" if is_over else "Approved standard EW"
+            })
+            if is_over:
+                st.warning(f"Request exceeds 10% threshold cap ({cap_10:,.2f} SAR)! Flagged for Executive PM review.")
+            else:
+                st.success("EW request within standard thresholds!")
+            st.rerun()
+
+    with ew_tab2:
+        st.subheader("Executive Review Queue")
+        df_ew = pd.DataFrame(st.session_state.pmo_data["extra_works"])
+        st.dataframe(df_ew, use_container_width=True)
+
+        if st.session_state.user_role == "Project Manager (PMO)" and len(df_ew) > 0:
+            pending_ew = df_ew[df_ew["Status"] == "Pending Executive PM Review"]
+            if len(pending_ew) > 0:
+                ew_target = st.selectbox("Select EW Request to Resolve", pending_ew["Description"].tolist())
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✅ Executive Approval"):
+                        for ew in st.session_state.pmo_data["extra_works"]:
+                            if ew["Description"] == ew_target:
+                                ew["Status"] = "Executive Approved"
+                                break
+                        st.success("Extra work order approved!")
+                        st.rerun()
+                with col2:
+                    if st.button("❌ Reject EW Request"):
+                        for ew in st.session_state.pmo_data["extra_works"]:
+                            if ew["Description"] == ew_target:
+                                ew["Status"] = "Rejected"
+                                break
+                        st.error("Extra work order rejected.")
+                        st.rerun()
+
+# ==========================================
+# PAGE 8: VENDOR MANAGEMENT
 # ==========================================
 elif selected_page == "Vendor Management":
     st.title("📖 Vendor Management & Price Book")
@@ -499,7 +629,7 @@ elif selected_page == "Vendor Management":
     st.dataframe(st.session_state.pmo_data["vendors"], use_container_width=True)
 
 # ==========================================
-# PAGE 7: GIS MAP
+# PAGE 9: GIS MAP
 # ==========================================
 elif selected_page == "GIS Site Map":
     st.title("🗺️ Interactive GIS Telecom Map")
