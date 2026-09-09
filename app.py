@@ -1,8 +1,6 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import time
 import os
-import importlib.util
 import runpy
 
 # --- PAGE CONFIGURATION ---
@@ -26,8 +24,7 @@ if "pmo_data" not in st.session_state:
             "PWR_01": {"description": "Commercial AC Power Hookup & DB Cabinet", "unit": "lot", "rate": 4500.00},
         },
         "sites": {},
-        "extra_works": [],
-        "approvals": []
+        "extra_works": []
     }
 
 if "preloader_shown" not in st.session_state:
@@ -39,17 +36,30 @@ if "authenticated" not in st.session_state:
 if "user_role" not in st.session_state:
     st.session_state.user_role = "Project Manager (PMO)"
 
-# --- FULLPAGE PRELOADER ---
+# --- FULLPAGE PRELOADER INJECTION ---
 if not st.session_state.preloader_shown:
-    fullpage_preloader_html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
+    st.markdown("""
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            html, body { width: 100vw; height: 100vh; overflow: hidden; background-color: #0b0f19; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-            #preloader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0b0f19; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; }
+            /* Hide standard Streamlit header/footer during preloader */
+            header, footer, [data-testid="stSidebar"] { visibility: hidden !important; }
+            .stAppViewContainer { background-color: #0b0f19 !important; padding: 0 !important; }
+            .main .block-container { max-width: 100% !important; padding: 0 !important; }
+
+            /* Fullscreen Preloader Overlay */
+            #preloader-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: #0b0f19;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999999;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
             .logo-animation-box { text-align: center; max-width: 450px; width: 100%; padding: 20px; }
             .animated-logo-svg { width: 180px; height: auto; margin-bottom: 25px; }
             .tower-structure { stroke: #10b981; stroke-width: 2.5; fill: none; stroke-dasharray: 600; stroke-dashoffset: 600; animation: drawTower 2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
@@ -60,14 +70,14 @@ if not st.session_state.preloader_shown:
             .brand-text-plus { fill: #10b981; }
             .brand-tagline { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; margin-top: 8px; opacity: 0; transform: translateY(10px); animation: slideUpText 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.6s forwards; }
             .copyright-tagline { font-size: 9px; color: #64748b; margin-top: 15px; opacity: 0; animation: fadeInSimple 1s ease 2.0s forwards; }
+
             @keyframes drawTower { to { stroke-dashoffset: 0; fill: rgba(16, 185, 129, 0.05); } }
             @keyframes rippleWave { 0% { opacity: 0; transform: scale(0.75); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.25); } }
             @keyframes slideUpText { to { opacity: 1; transform: translateY(0); } }
             @keyframes fadeInSimple { to { opacity: 1; } }
         </style>
-    </head>
-    <body>
-        <div id="preloader">
+
+        <div id="preloader-overlay">
             <div class="logo-animation-box">
                 <svg class="animated-logo-svg" viewBox="0 0 100 100">
                     <circle class="signal-wave wave-1" cx="50" cy="40" r="15" />
@@ -84,24 +94,30 @@ if not st.session_state.preloader_shown:
                 <div class="copyright-tagline">© Copyright Rana Muhammad Zagham - PMP®</div>
             </div>
         </div>
-    </body>
-    </html>
-    """
-    components.html(fullpage_preloader_html, height=1000, scrolling=False)
+    """, unsafe_allow_html=True)
     time.sleep(3.5)
     st.session_state.preloader_shown = True
     st.rerun()
 
-# --- AUTHENTICATION GATE ---
+# --- AUTHENTICATION & RBAC GATE ---
 def render_login_page():
-    st.markdown("<h1 style='text-align: center; color: #10b981;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+            .stApp { background-color: #0b0f19; color: #e2e8f0; }
+            div[data-baseweb="input"] { background-color: #1e293b; color: white; border-color: #334155; }
+            .stButton > button { background-color: #10b981; color: white; border: none; font-weight: bold; }
+            .stButton > button:hover { background-color: #059669; }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<h1 style='text-align: center; color: #10b981; margin-top: 40px;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #94a3b8;'>Telecom Infrastructure & Civil Works Governance Platform</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("pmo_login_form"):
-            st.subheader("Enterprise Access Login")
-            username = st.text_input("User ID", value="admin")
+            st.subheader("Enterprise Login")
+            username = st.text_input("User Identification", value="admin")
             password = st.text_input("Password", type="password", value="pmo2026")
             role = st.selectbox("Active Role Perspective", [
                 "Project Manager (PMO)",
@@ -110,7 +126,7 @@ def render_login_page():
                 "Finance Manager",
                 "HR / Safety Lead"
             ])
-            submit = st.form_submit_button("Log In to Portal", use_container_width=True)
+            submit = st.form_submit_button("Access Workspace", use_container_width=True)
             
             if submit:
                 clean_user = username.strip()
@@ -141,11 +157,10 @@ def get_available_modules():
 
 MODULES = get_available_modules()
 
-# --- SIDEBAR & RBAC ---
+# --- SIDEBAR & RBAC PERMISSIONS ---
 st.sidebar.markdown("## 📡 Project Plus")
 st.sidebar.caption(f"Active Role: **{st.session_state.user_role}**")
 
-# Define RBAC Permissions per Role
 RBAC_RULES = {
     "Project Manager (PMO)": list(MODULES.keys()),
     "Civil Work Lead": [m for m in MODULES.keys() if m in ["Site Survey", "Boq Extra Works", "Acceptance", "Gis Map", "Workflow", "Docs"]],
@@ -155,7 +170,6 @@ RBAC_RULES = {
 }
 
 allowed_modules = RBAC_RULES.get(st.session_state.user_role, list(MODULES.keys()))
-
 if not allowed_modules:
     allowed_modules = list(MODULES.keys())
 
@@ -172,26 +186,11 @@ if st.sidebar.button("🚪 Logout / Switch Role", use_container_width=True):
 
 st.sidebar.caption("Project Plus Infrastructure Engine v2.0")
 
-# --- UNIFIED MODULE DISPATCHER ---
+# --- DIRECT MODULE EXECUTION (PREVENTS BLANK SCREEN) ---
 file_path = MODULES[selected_module_title]
 
 try:
-    # 1. Try importing as a python module and executing any standard entrypoint function
-    spec = importlib.util.spec_from_file_location(selected_module_title.replace(" ", "_"), file_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    
-    entrypoint_found = False
-    for fn in ["render_site_survey", "render", "main", "show", "app"]:
-        if hasattr(mod, fn):
-            getattr(mod, fn)()
-            entrypoint_found = True
-            break
-            
-    # 2. Fallback: run script directly via runpy
-    if not entrypoint_found:
-        runpy.run_path(file_path, run_name="__main__")
-
+    # Direct execution of script inside main execution scope
+    runpy.run_path(file_path, run_name="__main__")
 except Exception as e:
     st.error(f"Error rendering module **{selected_module_title}**: `{e}`")
-    st.info("Check module entrypoint structure or file syntax.")
