@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import pydeck as pdk
 import time
 
 # --- PAGE CONFIGURATION ---
@@ -24,10 +25,10 @@ if "pmo_data" not in st.session_state:
             {"Code": "PWR_01", "Item": "Commercial AC Power Hookup & DB Cabinet", "Unit": "lot", "Rate": 4500.00},
         ]),
         "sites": pd.DataFrame([
-            {"Site ID": "RIY-101", "Region": "Riyadh", "Status": "Approved", "Tower Type": "45m Monopole", "Budget (SAR)": 42500, "Vendor": "Abrar Telecom", "Lat": 24.7136, "Lon": 46.6753},
-            {"Site ID": "JED-204", "Region": "Jeddah", "Status": "EW Pending Approval", "Tower Type": "60m Lattice", "Budget (SAR)": 68000, "Vendor": "Red Sea Infra", "Lat": 21.5433, "Lon": 39.1728},
-            {"Site ID": "DAM-302", "Region": "Dammam", "Status": "Survey Completed", "Tower Type": "45m Monopole", "Budget (SAR)": 38900, "Vendor": "Unassigned", "Lat": 26.4207, "Lon": 50.0888},
-            {"Site ID": "RUW-401", "Region": "Riyadh South", "Status": "In Construction", "Tower Type": "60m Lattice", "Budget (SAR)": 71200, "Vendor": "Abrar Telecom", "Lat": 24.5247, "Lon": 46.5211},
+            {"Site ID": "RIY-101", "Region": "Riyadh", "Status": "Approved", "Tower Type": "45m Monopole", "Budget (SAR)": 42500, "Vendor": "Abrar Telecom", "latitude": 24.7136, "longitude": 46.6753},
+            {"Site ID": "JED-204", "Region": "Jeddah", "Status": "EW Pending Approval", "Tower Type": "60m Lattice", "Budget (SAR)": 68000, "Vendor": "Red Sea Infra", "latitude": 21.5433, "longitude": 39.1728},
+            {"Site ID": "DAM-302", "Region": "Dammam", "Status": "Survey Completed", "Tower Type": "45m Monopole", "Budget (SAR)": 38900, "Vendor": "Unassigned", "latitude": 26.4207, "longitude": 50.0888},
+            {"Site ID": "RUW-401", "Region": "Riyadh South", "Status": "In Construction", "Tower Type": "60m Lattice", "Budget (SAR)": 71200, "Vendor": "Abrar Telecom", "latitude": 24.5247, "longitude": 46.5211},
         ]),
         "extra_works": [
             {"EW ID": "EW-RIY-001", "Site ID": "RIY-101", "Description": "Hard Rock Excavation Expansion", "Amount": 8500, "Status": "Pending PM Review", "Requested By": "Civil Lead"},
@@ -99,14 +100,16 @@ if not st.session_state.preloader_shown:
     st.session_state.preloader_shown = True
     st.rerun()
 
-# --- THEME STYLING ---
+# --- HIGH-CONTRAST ENTERPRISE THEME STYLING ---
 st.markdown("""
     <style>
-        .stApp { background-color: #0b0f19; color: #e2e8f0; }
-        div[data-baseweb="input"] { background-color: #1e293b; color: white; border-color: #334155; }
-        .stButton > button { background-color: #10b981; color: white; border: none; font-weight: bold; }
-        .stButton > button:hover { background-color: #059669; }
-        .card { background-color: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 15px; }
+        .stApp { background-color: #0f172a; color: #f8fafc; }
+        [data-testid="stSidebar"] { background-color: #1e293b !important; border-right: 1px solid #334155; }
+        div[data-baseweb="input"], div[data-baseweb="select"] { background-color: #1e293b !important; color: white !important; border: 1px solid #475569 !important; }
+        .stButton > button { background-color: #10b981 !important; color: white !important; border: none !important; font-weight: bold !important; border-radius: 6px !important; }
+        .stButton > button:hover { background-color: #059669 !important; }
+        div[data-testid="stMetricValue"] { color: #10b981 !important; font-weight: bold; }
+        .stDataFrame { border: 1px solid #334155; border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -141,14 +144,13 @@ if not st.session_state.authenticated:
 st.sidebar.markdown("## 📡 Project Plus")
 st.sidebar.caption(f"User Role: **{st.session_state.user_role}**")
 
-# RBAC Logic - Structure modules into clean functional tabs
 if st.session_state.user_role == "Project Manager (PMO)":
     nav_options = ["Bird's Eye PMO View", "Site Survey & BOQ Engine", "Extra Works (EW) & Approvals", "Vendor Management", "GIS Site Map", "Master Price Book"]
 elif st.session_state.user_role == "Civil Work Lead":
     nav_options = ["Site Survey & BOQ Engine", "Extra Works (EW) & Approvals", "GIS Site Map"]
 elif st.session_state.user_role == "Vendor / Subcontractor":
     nav_options = ["Vendor Management", "Extra Works (EW) & Approvals"]
-else:  # Finance Manager
+else:
     nav_options = ["Bird's Eye PMO View", "Extra Works (EW) & Approvals", "Master Price Book"]
 
 selected_page = st.sidebar.radio("Enterprise Navigation:", nav_options)
@@ -160,6 +162,40 @@ if st.sidebar.button("🚪 Logout / Switch Role", use_container_width=True):
 
 st.sidebar.caption("Project Plus Engine v2.0")
 
+# --- HELPER FUNCTION: PYDECK MAP GENERATOR ---
+def render_pydeck_map(df, map_style_choice):
+    styles = {
+        "Street View": "mapbox://styles/mapbox/dark-v10",
+        "Satellite View": "mapbox://styles/mapbox/satellite-v9",
+        "Hybrid View": "mapbox://styles/mapbox/satellite-streets-v11"
+    }
+
+    layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=df,
+        get_position=["longitude", "latitude"],
+        get_color="[16, 185, 129, 200]",
+        get_radius=35000,
+        pickable=True,
+    )
+
+    view_state = pdk.ViewState(
+        latitude=24.0,
+        longitude=45.0,
+        zoom=4.8,
+        pitch=30
+    )
+
+    tooltip = {"html": "<b>Site ID:</b> {Site ID}<br/><b>Region:</b> {Region}<br/><b>Status:</b> {Status}<br/><b>Budget:</b> {Budget (SAR)} SAR", "style": {"color": "white"}}
+
+    r = pdk.Deck(
+        layers=[layer],
+        initial_view_state=view_state,
+        map_style=styles.get(map_style_choice, "mapbox://styles/mapbox/dark-v10"),
+        tooltip=tooltip
+    )
+    st.pydeck_chart(r)
+
 # ==========================================
 # PAGE 1: BIRD'S EYE PMO DASHBOARD
 # ==========================================
@@ -167,7 +203,6 @@ if selected_page == "Bird's Eye PMO View":
     st.title("🦅 Bird's Eye Enterprise Dashboard")
     st.caption("Real-time executive oversight across active telecom civil construction sites, budgets, and vendors.")
 
-    # High Level KPIs
     k1, k2, k3, k4 = st.columns(4)
     df_sites = st.session_state.pmo_data["sites"]
     k1.metric("Total Active Sites", len(df_sites))
@@ -180,7 +215,8 @@ if selected_page == "Bird's Eye PMO View":
 
     with c1:
         st.subheader("📍 Live Map View of Approved Telecom Sites")
-        st.map(df_sites[["Lat", "Lon"]], zoom=5)
+        map_mode = st.radio("Map Terrain View:", ["Street View", "Satellite View", "Hybrid View"], horizontal=True, key="pmo_map_toggle")
+        render_pydeck_map(df_sites, map_mode)
 
     with c2:
         st.subheader("📋 Active Site Portfolio")
@@ -204,14 +240,11 @@ elif selected_page == "Site Survey & BOQ Engine":
         fence_len = st.number_input("Perimeter Fencing (m)", value=48.0, step=4.0)
 
     if st.button("⚙️ Generate Site BOQ & Save to Project Plus", type="primary"):
-        price_book = st.session_state.pmo_data["price_book"]
-        
         mult = 1.0
         if "Class B" in soil: mult = 1.25
         elif "Class C" in soil: mult = 1.60
 
-        exc_rate = 45.0 * mult
-        tot_exc = 60 * exc_rate
+        tot_exc = 60 * (45.0 * mult)
         tot_conc = concrete * 350.0
         tot_tower = 18500.0 if "45m" in tower else 32000.0
         tot_fence = fence_len * 85.0
@@ -221,8 +254,8 @@ elif selected_page == "Site Survey & BOQ Engine":
         new_site = pd.DataFrame([{
             "Site ID": site_id, "Region": region, "Status": "Survey Completed",
             "Tower Type": tower, "Budget (SAR)": boq_total, "Vendor": "Unassigned",
-            "Lat": 24.7136 + np.random.uniform(-0.5, 0.5),
-            "Lon": 46.6753 + np.random.uniform(-0.5, 0.5)
+            "latitude": 24.7136 + np.random.uniform(-0.5, 0.5),
+            "longitude": 46.6753 + np.random.uniform(-0.5, 0.5)
         }])
 
         st.session_state.pmo_data["sites"] = pd.concat([st.session_state.pmo_data["sites"], new_site], ignore_index=True)
@@ -254,9 +287,7 @@ elif selected_page == "Extra Works (EW) & Approvals":
 
     st.markdown("---")
     st.subheader("2. Approval Chain Queue")
-    
-    ew_df = pd.DataFrame(st.session_state.pmo_data["extra_works"])
-    st.dataframe(ew_df, use_container_width=True)
+    st.dataframe(pd.DataFrame(st.session_state.pmo_data["extra_works"]), use_container_width=True)
 
 # ==========================================
 # PAGE 4: VENDOR MANAGEMENT
@@ -287,8 +318,9 @@ elif selected_page == "GIS Site Map":
     st.title("🗺️ Interactive GIS Telecom Tower Map")
     st.caption("Geospatial visualization of civil engineering works across the Kingdom.")
 
+    map_mode_gis = st.radio("Select Terrain View Mode:", ["Street View", "Satellite View", "Hybrid View"], horizontal=True, key="gis_map_toggle")
     df_map = st.session_state.pmo_data["sites"]
-    st.map(df_map[["Lat", "Lon"]], zoom=5)
+    render_pydeck_map(df_map, map_mode_gis)
     st.dataframe(df_map, use_container_width=True)
 
 # ==========================================
