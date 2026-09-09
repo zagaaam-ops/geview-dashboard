@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import inspect
 
 st.set_page_config(page_title="GEView System Dashboard", layout="wide")
 
@@ -36,7 +36,27 @@ st.sidebar.title("GEView System")
 selected_view = st.sidebar.selectbox("Select Module / View", list(MODULE_MAP.keys()))
 selected_module = MODULE_MAP[selected_view]
 
-if hasattr(selected_module, "render"):
-    selected_module.render()
-elif hasattr(selected_module, "show"):
-    selected_module.show()
+executed = False
+entry_point_names = ["show", "render", "main", "app", "display", "run", "render_module"]
+
+for func_name in entry_point_names:
+    if hasattr(selected_module, func_name):
+        func = getattr(selected_module, func_name)
+        if callable(func):
+            sig = inspect.signature(func)
+            if len(sig.parameters) == 0:
+                func()
+            else:
+                func("Project Manager")
+            executed = True
+            break
+
+if not executed:
+    callables = [
+        obj for name, obj in inspect.getmembers(selected_module, inspect.isfunction)
+        if obj.__module__ == selected_module.__name__
+    ]
+    if callables:
+        callables[0]()
+    else:
+        st.warning(f"No entry-point function found in `{selected_module.__name__}`.")
