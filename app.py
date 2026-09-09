@@ -2,13 +2,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 import time
 import os
-import importlib.util
 import runpy
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="GEView | Enterprise PMO Dashboard",
-    page_icon="📊",
+    page_title="Project Plus | Telecom Infrastructure PMO",
+    page_icon="📡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -20,7 +19,10 @@ if "preloader_shown" not in st.session_state:
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- FULLPAGE PRELOADER GATE ---
+if "user_role" not in st.session_state:
+    st.session_state.user_role = "Project Manager"
+
+# --- FULLPAGE PRELOADER (PROJECT PLUS BRANDING) ---
 if not st.session_state.preloader_shown:
     fullpage_preloader_html = """
     <!DOCTYPE html>
@@ -73,34 +75,36 @@ if not st.session_state.preloader_shown:
     st.session_state.preloader_shown = True
     st.rerun()
 
-# --- AUTHENTICATION GATE ---
+# --- AUTHENTICATION & RBAC GATE ---
 def render_login_page():
-    st.markdown("<h1 style='text-align: center;'>🔐 GEView PMO Workspace</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: gray;'>Enterprise Project Management & Analytics Portal</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #10b981;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94a3b8;'>Telecom Infrastructure & Civil Works Governance System</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("pmo_login_form"):
-            st.subheader("Sign In")
-            username = st.text_input("Project Lead / User ID")
+            st.subheader("Enterprise Login")
+            username = st.text_input("User Identification")
             password = st.text_input("Password", type="password")
-            submit = st.form_submit_button("Access PMO Dashboard", use_container_width=True)
+            role = st.selectbox("Role Perspective", ["Project Manager (PMO)", "Civil Work Lead", "Vendor / Subcontractor", "Finance Manager", "HR / Safety Lead"])
+            submit = st.form_submit_button("Access Portal", use_container_width=True)
             
             if submit:
                 clean_user = username.strip()
                 clean_pass = password.strip()
-                if clean_user == "admin" and clean_pass in ["pmo2026", "pmo2026!", "admin123"]:
+                if clean_user and clean_pass in ["pmo2026", "pmo2026!", "admin123", "admin"]:
                     st.session_state.authenticated = True
+                    st.session_state.user_role = role
                     st.rerun()
                 else:
-                    st.error("Invalid Username or Password")
+                    st.error("Invalid Enterprise Credentials")
 
 if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# --- DISCOVER PMO MODULE FILES ---
-def get_module_files():
+# --- MODULE DISCOVERY & DISPATCH ---
+def discover_pmo_modules():
     modules = {}
     search_dirs = [".", "modules", "views", "pages"]
     
@@ -109,34 +113,35 @@ def get_module_files():
             for file in sorted(os.listdir(s_dir)):
                 if file.endswith(".py") and file not in ["app.py", "setup.py", "__init__.py"]:
                     title = file.replace(".py", "").replace("_", " ").title()
-                    file_path = os.path.join(s_dir, file)
-                    modules[title] = file_path
+                    modules[title] = os.path.join(s_dir, file)
     return modules
 
-MODULES_PATHS = get_module_files()
+MODULES = discover_pmo_modules()
 
-st.sidebar.title("📌 PMO Navigation")
+# --- SIDEBAR & RBAC DISPLAY ---
+st.sidebar.markdown("## 📡 Project Plus")
+st.sidebar.caption(f"Role: **{st.session_state.user_role}**")
 
-if MODULES_PATHS:
+if MODULES:
     selected_module_title = st.sidebar.radio(
-        "Select Project View:",
-        options=list(MODULES_PATHS.keys()),
+        "Navigation:",
+        options=list(MODULES.keys()),
         index=0
     )
     
     st.sidebar.markdown("---")
-    if st.sidebar.button("🚪 Log Out", use_container_width=True):
+    if st.sidebar.button("🚪 Switch User / Logout", use_container_width=True):
         st.session_state.authenticated = False
         st.rerun()
 
-    st.sidebar.caption("GEView Enterprise PMO Dashboard v1.0")
+    st.sidebar.caption("Project Plus Infrastructure Engine v2.0")
 
-    # Execute selected python file directly using runpy
-    file_to_run = MODULES_PATHS[selected_module_title]
+    # Execute module context
+    file_path = MODULES[selected_module_title]
     try:
-        runpy.run_path(file_to_run, run_name="__main__")
+        runpy.run_path(file_path, run_name="__main__")
     except Exception as e:
-        st.error(f"Error running module `{selected_module_title}` ({file_to_run}): {e}")
+        st.error(f"Error executing module `{selected_module_title}`: {e}")
 else:
-    st.sidebar.warning("No modules detected.")
-    st.title("GEView PMO Dashboard Home")
+    st.sidebar.warning("No enterprise modules located.")
+    st.title("Project Plus Telecom Workspace")
