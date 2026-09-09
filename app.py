@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import time
 import os
 import importlib.util
+import runpy
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -12,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- INITIALIZE SESSION STATES ---
+# --- SESSION STATES ---
 if "preloader_shown" not in st.session_state:
     st.session_state.preloader_shown = False
 
@@ -98,8 +99,8 @@ if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# --- DYNAMIC PMO MODULE ROUTER ---
-def load_all_modules():
+# --- DISCOVER PMO MODULE FILES ---
+def get_module_files():
     modules = {}
     search_dirs = [".", "modules", "views", "pages"]
     
@@ -107,26 +108,19 @@ def load_all_modules():
         if os.path.exists(s_dir):
             for file in sorted(os.listdir(s_dir)):
                 if file.endswith(".py") and file not in ["app.py", "setup.py", "__init__.py"]:
-                    mod_key = file.replace(".py", "").replace("_", " ").title()
+                    title = file.replace(".py", "").replace("_", " ").title()
                     file_path = os.path.join(s_dir, file)
-                    
-                    try:
-                        spec = importlib.util.spec_from_file_location(file.replace(".py", ""), file_path)
-                        mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(mod)
-                        modules[mod_key] = mod
-                    except Exception as e:
-                        st.sidebar.error(f"Error loading {file}: {e}")
+                    modules[title] = file_path
     return modules
 
-MODULES_MAP = load_all_modules()
+MODULES_PATHS = get_module_files()
 
 st.sidebar.title("📌 PMO Navigation")
 
-if MODULES_MAP:
-    selected_module = st.sidebar.radio(
+if MODULES_PATHS:
+    selected_module_title = st.sidebar.radio(
         "Select Project View:",
-        options=list(MODULES_MAP.keys()),
+        options=list(MODULES_PATHS.keys()),
         index=0
     )
     
@@ -137,22 +131,12 @@ if MODULES_MAP:
 
     st.sidebar.caption("GEView Enterprise PMO Dashboard v1.0")
 
-    # Target and execute selected module function safely
-    active_module = MODULES_MAP[selected_module]
-    
-    # Try calling module entrypoints in order of standard naming
-    if hasattr(active_module, "render"):
-        active_module.render()
-    elif hasattr(active_module, "main"):
-        active_module.main()
-    elif hasattr(active_module, "show"):
-        active_module.show()
-    elif hasattr(active_module, "app"):
-        active_module.app()
-    else:
-        # Run top-level script contents if functions are not wrapped
-        st.write(f"### {selected_module}")
-        st.info(f"Module file loaded (`{active_module.__file__}`). Add a `render()` function inside this module to control layout execution.")
+    # Execute selected python file directly using runpy
+    file_to_run = MODULES_PATHS[selected_module_title]
+    try:
+        runpy.run_path(file_to_run, run_name="__main__")
+    except Exception as e:
+        st.error(f"Error running module `{selected_module_title}` ({file_to_run}): {e}")
 else:
     st.sidebar.warning("No modules detected.")
     st.title("GEView PMO Dashboard Home")
