@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
-from fpdf import FPDF
+
+# Fallback import for fpdf / fpdf2
+try:
+    from fpdf import FPDF
+except ImportError:
+    from fpdf2 import FPDF
 
 class IPCInvoicePDF(FPDF):
     def header(self):
