@@ -637,17 +637,3 @@ elif selected_page == "GIS Site Map":
     render_enterprise_map(st.session_state.pmo_data["sites"], map_mode)
 
 
-# ---------------------------------------------------------
-# SITE MODEL & EXTRA WORK (EW) UPL CALCULATOR
-# ---------------------------------------------------------
-st.markdown('### 🏗️ Site Model & Extra Work (EW) UPL Selector')
-
-col_v, col_m, col_h = st.columns(3)
-with col_v:
-    selected_vendor = st.selectbox('Select Vendor', ['Vendor 1 (Ven1)', 'Vendor 2 (Ven2)'])
-with col_m:
-    site_type = st.selectbox('Site Type', ['Rooftop (RT)', 'Rooftop Penetrating', 'Greenfield (GF) Monopole', 'Greenfield (GF) Lattice'])
-with col_h:
-    tower_height = st.selectbox('Tower Height (m)', ['6m', '9m', '12m', '15m', '25m', '30m', '36m', '40m', '45m', '50m', '60m'])
-
-st.info(f'Selected Configuration: **{selected_vendor}** | **{site_type}** | Height: **{tower_height}**')
