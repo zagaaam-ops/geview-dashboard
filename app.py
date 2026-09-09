@@ -1,10 +1,8 @@
 import streamlit as st
 import inspect
 
-# Configure layout
 st.set_page_config(page_title="GEView System Dashboard", layout="wide")
 
-# Import modules
 from modules import (
     analytics, gantt, gis_map, finance, evm, evm_analytics, supply_chain,
     hr, hr_certifications, site_survey, acceptance, editor, boq_export,
@@ -35,49 +33,49 @@ MODULE_MAP = {
 }
 
 st.sidebar.title("GEView System")
+user_role = st.sidebar.selectbox("Active Role Context", ["Project Manager", "Finance Director", "Field Engineer"])
 selected_view = st.sidebar.selectbox("Select Module / View", list(MODULE_MAP.keys()))
 selected_module = MODULE_MAP[selected_view]
 
-# Primary UI entry points to try
-ENTRY_POINTS = ["show", "render", "main", "app", "display", "run", "render_module"]
-
-def render_selected_module(module):
-    # 1. Try standard entry-point names
-    for func_name in ENTRY_POINTS:
+def render_module_safe(module, role):
+    possible_funcs = [
+        "show", "render", "main", "app", "display", "run", 
+        "render_finance_module", "render_evm_module", "render_supply_chain_module"
+    ]
+    
+    for func_name in possible_funcs:
         if hasattr(module, func_name):
             func = getattr(module, func_name)
             if callable(func):
                 sig = inspect.signature(func)
-                # Pass role parameter if required
-                if len(sig.parameters) == 0:
-                    func()
+                if len(sig.parameters) > 0:
+                    func(role)
                 else:
-                    func("Project Manager")
+                    func()
                 return True
 
-    # 2. Find zero-parameter functions defined directly in the module
-    functions = [
+    module_funcs = [
         obj for name, obj in inspect.getmembers(module, inspect.isfunction)
         if obj.__module__ == module.__name__
     ]
     
-    for func in functions:
+    for func in module_funcs:
         sig = inspect.signature(func)
-        # Only call functions that require zero mandatory positional args
-        mandatory_args = [
-            p for p in sig.parameters.values() 
-            if p.default == inspect.Parameter.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
-        ]
-        if len(mandatory_args) == 0:
-            func()
-            return True
+        try:
+            if len(sig.parameters) == 0:
+                func()
+                return True
+            elif len(sig.parameters) == 1:
+                func(role)
+                return True
+        except Exception:
+            continue
 
     return False
 
-# Execute module rendering safely
 try:
-    success = render_selected_module(selected_module)
-    if not success:
-        st.warning(f"Module `{selected_view}` loaded, but no parameter-free UI render function was identified.")
+    rendered = render_module_safe(selected_module, user_role)
+    if not rendered:
+        st.warning(f"Unable to render `{selected_view}`.")
 except Exception as e:
-    st.error(f"Error executing `{selected_view}`: {str(e)}")
+    st.error(f"Error rendering `{selected_view}`: {str(e)}")
