@@ -1,282 +1,42 @@
 import streamlit as st
 import pandas as pd
 
-# Fallback import for fpdf / fpdf2
-try:
-    from fpdf import FPDF
-except ImportError:
-    from fpdf2 import FPDF
+st.set_page_config(page_title="GEView System Dashboard", layout="wide")
 
-# Configure page layout
-st.set_page_config(page_title="GEView Dashboard", layout="wide")
-
-# Sidebar navigation
-st.sidebar.title("GEView System")
-role = st.sidebar.selectbox(
-    "Select User Role / View", 
-    ["Bird's Eye View", "Implementation Status", "Sites & Vendors", "Map View", "Finance Director"]
+from modules import (
+    analytics, gantt, gis_map, finance, evm, evm_analytics, supply_chain,
+    hr, hr_certifications, site_survey, acceptance, editor, boq_export,
+    boq_extra_works, vendor_compare, price_book, docs, workflow, alerts, pdf_report
 )
 
-# Shared Sample Data
-site_data = pd.DataFrame([
-    {"Site ID": "RIY-101", "Region": "Riyadh", "Vendor": "Abrar Communications", "Status": "Completed", "Lat": 24.7136, "Lon": 46.6753},
-    {"Site ID": "RIY-102", "Region": "Riyadh", "Vendor": "Telecom Works Co", "Status": "In Progress", "Lat": 24.774265, "Lon": 46.738586},
-    {"Site ID": "JED-201", "Region": "Jeddah", "Vendor": "Red Sea Telecom", "Status": "In Progress", "Lat": 21.543333, "Lon": 39.172778},
-    {"Site ID": "DMM-301", "Region": "Dammam", "Vendor": "Eastern Tech", "Status": "Pending", "Lat": 26.4207, "Lon": 50.0888},
-])
+MODULE_MAP = {
+    "🦅 Executive Analytics (Bird's Eye)": analytics,
+    "⚡ Implementation & Gantt Chart": gantt,
+    "🗺️ Interactive GIS Map View": gis_map,
+    "💳 Commercial Finance & IPC Invoicing": finance,
+    "📊 Earned Value Management (EVM)": evm,
+    "📈 EVM Advanced Cost Forecasting": evm_analytics,
+    "📦 Supply Chain & Material Requests": supply_chain,
+    "👷 HR & Manpower Allocation": hr,
+    "📜 HR Staff Certifications (PMP/Civil)": hr_certifications,
+    "📋 Technical Site Survey (TSSR)": site_survey,
+    "✅ PAC / FAC Acceptance Workflow": acceptance,
+    "✏️ Dynamic BOQ Live Editor": editor,
+    "📤 BOQ Document Export": boq_export,
+    "🚧 Extra Works (EW) Tracking": boq_extra_works,
+    "🔍 Subcontractor Rate Comparison": vendor_compare,
+    "📖 Standard Telecom Price Book": price_book,
+    "📁 Document Control & Submittals": docs,
+    "🔄 Site Handover Approval Engine": workflow,
+    "🚨 Delay Alerts & Escalation Logs": alerts,
+    "📄 Automated PDF Report Generator": pdf_report,
+}
 
-# ---------------------------------------------------------
-# 1. BIRD'S EYE VIEW
-# ---------------------------------------------------------
-if role == "Bird's Eye View":
-    st.title("🦅 Bird's Eye View - Executive Summary")
-    st.caption("High-level overview of network rollouts and site milestones.")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Sites", "142")
-    with col2:
-        st.metric("Completed", "98", "+12 this month")
-    with col3:
-        st.metric("In Progress", "32")
-    with col4:
-        st.metric("Pending Approval", "12")
-        
-    st.markdown("---")
-    st.markdown("### Regional Site Progress")
-    st.bar_chart({"Riyadh": 65, "Jeddah": 45, "Dammam": 32})
+st.sidebar.title("GEView System")
+selected_view = st.sidebar.selectbox("Select Module / View", list(MODULE_MAP.keys()))
+selected_module = MODULE_MAP[selected_view]
 
-# ---------------------------------------------------------
-# 2. IMPLEMENTATION STATUS
-# ---------------------------------------------------------
-elif role == "Implementation Status":
-    st.title("⚡ Implementation Status Tracker")
-    st.caption("Detailed progress tracking across active deployment phases.")
-    
-    st.markdown("### Active Sites Status")
-    st.dataframe(site_data, use_container_width=True)
-
-# ---------------------------------------------------------
-# 3. SITES & VENDORS
-# ---------------------------------------------------------
-elif role == "Sites & Vendors":
-    st.title("🏗️ Sites & Vendor Management")
-    st.caption("Vendor allocations, civil works execution, and site assignments.")
-    
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        st.markdown("### Vendor Breakdown")
-        st.dataframe(site_data[["Vendor", "Site ID", "Status"]], use_container_width=True)
-    with col_v2:
-        st.markdown("### Vendor Performance")
-        st.metric("Abrar Communications", "42 Sites Completed")
-        st.metric("Telecom Works Co", "30 Sites Completed")
-
-# ---------------------------------------------------------
-# 4. MAP VIEW
-# ---------------------------------------------------------
-elif role == "Map View":
-    st.title("🗺️ Geographic Map View")
-    st.caption("Interactive site location mapping across Saudi Arabia.")
-    st.map(site_data[["Lat", "Lon"]])
-
-# ---------------------------------------------------------
-# 5. FINANCE DIRECTOR MODULE (IPC & INVOICING)
-# ---------------------------------------------------------
-elif role == "Finance Director":
-    class IPCInvoicePDF(FPDF):
-        def header(self):
-            self.set_fill_color(15, 23, 42)
-            self.rect(0, 0, 210, 32, 'F')
-            self.set_font('Helvetica', 'B', 14)
-            self.set_text_color(255, 255, 255)
-            self.set_xy(10, 8)
-            self.cell(0, 8, 'TAX INVOICE / INTERIM PAYMENT CERTIFICATE', ln=True)
-            self.set_font('Helvetica', '', 9)
-            self.set_text_color(148, 163, 184)
-            self.cell(0, 5, 'KSA VAT Compliant Commercial Billing Document | GEView Finance', ln=True)
-            self.ln(10)
-
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('Helvetica', 'I', 8)
-            self.set_text_color(100, 116, 139)
-            self.cell(0, 10, 'Kingdom of Saudi Arabia | Compliant with ZATCA Tax & Billing Guidelines', align='C')
-
-    def generate_ipc_pdf(ipc_no, client_name, project_ref, billing_period, df_boq, df_ew, boq_subtotal, ew_subtotal, gross_work_done, retention_amount, net_before_vat, vat_amount, total_payable_ipc):
-        pdf = IPCInvoicePDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        
-        pdf.set_font('Helvetica', '', 9)
-        pdf.set_text_color(30, 41, 59)
-        
-        meta_data = [
-            [f"Invoice / IPC No: {ipc_no}", "Invoice Date: September 09, 2026"],
-            [f"Client / Operator: {client_name}", "VAT Reg No: 300000000000003"],
-            [f"Contract Ref: {project_ref}", f"Billing Cycle: {billing_period}"]
-        ]
-        
-        for row in meta_data:
-            pdf.cell(95, 6, row[0], border=0)
-            pdf.cell(95, 6, row[1], border=0, ln=True)
-        pdf.ln(4)
-        
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 6, '1. Contracted BOQ Work Executed', ln=True)
-        pdf.ln(1)
-        
-        pdf.set_font('Helvetica', 'B', 8)
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(30, 6, 'Item Code', border=1, fill=True)
-        pdf.cell(65, 6, 'Description', border=1, fill=True)
-        pdf.cell(15, 6, 'Unit', border=1, fill=True, align='C')
-        pdf.cell(20, 6, 'Qty', border=1, fill=True, align='R')
-        pdf.cell(30, 6, 'Rate (SAR)', border=1, fill=True, align='R')
-        pdf.cell(30, 6, 'Total (SAR)', border=1, fill=True, align='R', ln=True)
-        
-        pdf.set_font('Helvetica', '', 8)
-        pdf.set_text_color(30, 41, 59)
-        for idx, row in df_boq.iterrows():
-            pdf.cell(30, 6, str(row['Item Code']), border=1)
-            pdf.cell(65, 6, str(row['Description']), border=1)
-            pdf.cell(15, 6, str(row['Unit']), border=1, align='C')
-            pdf.cell(20, 6, f"{row['Executed Qty']:,}", border=1, align='R')
-            pdf.cell(30, 6, f"{row['Unit Rate (SAR)']:,.2f}", border=1, align='R')
-            pdf.cell(30, 6, f"{row['Total (SAR)']:,.2f}", border=1, align='R', ln=True)
-        pdf.ln(4)
-
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 6, '2. Approved Extra Works (EW)', ln=True)
-        pdf.ln(1)
-        
-        pdf.set_font('Helvetica', 'B', 8)
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(30, 6, 'EW Ref', border=1, fill=True)
-        pdf.cell(25, 6, 'Site ID', border=1, fill=True)
-        pdf.cell(75, 6, 'Scope Description', border=1, fill=True)
-        pdf.cell(25, 6, 'Status', border=1, fill=True, align='C')
-        pdf.cell(35, 6, 'Claimed Amount (SAR)', border=1, fill=True, align='R', ln=True)
-        
-        pdf.set_font('Helvetica', '', 8)
-        pdf.set_text_color(30, 41, 59)
-        for idx, row in df_ew.iterrows():
-            pdf.cell(30, 6, str(row['EW Ref']), border=1)
-            pdf.cell(25, 6, str(row['Site ID']), border=1)
-            pdf.cell(75, 6, str(row['Scope Description']), border=1)
-            pdf.cell(25, 6, str(row['Status']), border=1, align='C')
-            pdf.cell(35, 6, f"{row['Claimed Amount (SAR)']:,.2f}", border=1, align='R', ln=True)
-        pdf.ln(4)
-
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 6, '3. Financial Statement & VAT Calculations', ln=True)
-        pdf.ln(1)
-
-        summary_items = [
-            ("BOQ Executed Subtotal", f"SAR {boq_subtotal:,.2f}", False),
-            ("Approved Extra Works (EW) Subtotal", f"SAR {ew_subtotal:,.2f}", False),
-            ("Gross Executed Work Value", f"SAR {gross_work_done:,.2f}", True),
-            ("Less: 10% Contractual Performance Retention", f"- SAR {retention_amount:,.2f}", False),
-            ("Net Payable Work (Excl. VAT)", f"SAR {net_before_vat:,.2f}", True),
-            ("Add: 15% KSA Value Added Tax (VAT)", f"SAR {vat_amount:,.2f}", False),
-            ("TOTAL IPC CERTIFICATE AMOUNT PAYABLE", f"SAR {total_payable_ipc:,.2f}", True)
-        ]
-
-        for label, val, is_bold in summary_items:
-            if is_bold:
-                pdf.set_font('Helvetica', 'B', 8)
-            else:
-                pdf.set_font('Helvetica', '', 8)
-            pdf.cell(130, 6, label, border=1)
-            pdf.cell(60, 6, val, border=1, align='R', ln=True)
-
-        return bytes(pdf.output())
-
-    st.title("💳 Commercial Finance & Interim Payment Certificate (IPC)")
-    st.caption("Generate Saudi 15% VAT compliant IPC billing statements directly from approved BOQ and Extra Work (EW) items.")
-
-    st.markdown("---")
-
-    approved_boq = [
-        {"Item Code": "BOQ-CIV-001", "Description": "Tower Foundation Excavation", "Unit": "m³", "Executed Qty": 1150, "Unit Rate (SAR)": 85.0, "Total (SAR)": 97750.0},
-        {"Item Code": "BOQ-CIV-002", "Description": "Reinforced Concrete Pouring", "Unit": "m³", "Executed Qty": 380, "Unit Rate (SAR)": 420.0, "Total (SAR)": 159600.0},
-        {"Item Code": "BOQ-TEL-003", "Description": "Feeder Cable Pulling & Termination", "Unit": "m", "Executed Qty": 2100, "Unit Rate (SAR)": 25.0, "Total (SAR)": 52500.0},
-    ]
-
-    approved_ew = [
-        {"EW Ref": "EW-2026-001", "Site ID": "RIY-104", "Scope Description": "Hard Rock Trenching", "Claimed Amount (SAR)": 25000.0, "Status": "Approved"},
-    ]
-
-    df_boq = pd.DataFrame(approved_boq)
-    df_ew = pd.DataFrame(approved_ew)
-
-    boq_subtotal = df_boq["Total (SAR)"].sum()
-    ew_subtotal = df_ew["Claimed Amount (SAR)"].sum()
-    gross_work_done = boq_subtotal + ew_subtotal
-    
-    retention_rate = 0.10
-    retention_amount = gross_work_done * retention_rate
-    net_before_vat = gross_work_done - retention_amount
-    
-    vat_rate = 0.15
-    vat_amount = net_before_vat * vat_rate
-    total_payable_ipc = net_before_vat + vat_amount
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Gross Executed Work", f"SAR {gross_work_done:,.2f}")
-    with col2:
-        st.metric("10% Retention Holdback", f"- SAR {retention_amount:,.2f}")
-    with col3:
-        st.metric("15% KSA VAT", f"SAR {vat_amount:,.2f}")
-    with col4:
-        st.metric("Net Payable IPC Amount", f"SAR {total_payable_ipc:,.2f}")
-
-    st.markdown("---")
-    st.markdown("### 1. Linked Contracted BOQ Line Items")
-    st.dataframe(df_boq, use_container_width=True)
-
-    st.markdown("### 2. Linked Approved Extra Works (EW) Line Items")
-    st.dataframe(df_ew, use_container_width=True)
-
-    st.markdown("---")
-    st.markdown("### 📄 IPC Certificate Billing Statement")
-
-    col_meta1, col_meta2 = st.columns(2)
-    with col_meta1:
-        ipc_no = st.text_input("IPC Certificate Number", "IPC-2026-009")
-        client_name = st.text_input("Client / Operator", "Saudi Telecom Company (STC)")
-    with col_meta2:
-        project_ref = st.text_input("Contract / Project Ref", "KSA-TEL-2026-88B")
-        billing_period = st.text_input("Billing Period", "September 2026")
-
-    st.markdown("#### **Financial Statement Breakdown**")
-    summary_table = pd.DataFrame([
-        {"Line Item Description": "BOQ Executed Subtotal", "Amount (SAR)": f"{boq_subtotal:,.2f}"},
-        {"Line Item Description": "Approved Extra Works (EW) Subtotal", "Amount (SAR)": f"{ew_subtotal:,.2f}"},
-        {"Line Item Description": "Gross Executed Work", "Amount (SAR)": f"{gross_work_done:,.2f}"},
-        {"Line Item Description": "Less: 10% Performance Retention", "Amount (SAR)": f"-{retention_amount:,.2f}"},
-        {"Line Item Description": "Net Payable Work (Excl. VAT)", "Amount (SAR)": f"{net_before_vat:,.2f}"},
-        {"Line Item Description": "Add: 15% KSA Value Added Tax (VAT)", "Amount (SAR)": f"{vat_amount:,.2f}"},
-        {"Line Item Description": "TOTAL IPC CERTIFICATE PAYABLE", "Amount (SAR)": f"{total_payable_ipc:,.2f}"},
-    ])
-    st.table(summary_table)
-
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        if st.button("🔒 Approve & Lock IPC Certificate", type="primary", use_container_width=True):
-            st.success("IPC Certificate locked and submitted!")
-    with btn_col2:
-        pdf_bytes = generate_ipc_pdf(ipc_no, client_name, project_ref, billing_period, df_boq, df_ew, boq_subtotal, ew_subtotal, gross_work_done, retention_amount, net_before_vat, vat_amount, total_payable_ipc)
-        st.download_button(
-            label="📥 Download KSA VAT-Compliant IPC Invoice (PDF)",
-            data=pdf_bytes,
-            file_name=f"{ipc_no}_Tax_Invoice.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+if hasattr(selected_module, "render"):
+    selected_module.render()
+elif hasattr(selected_module, "show"):
+    selected_module.show()
