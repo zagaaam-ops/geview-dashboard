@@ -1,10 +1,12 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import time
+import os
+import importlib.util
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="GEView | Enterprise Project Management",
+    page_title="GEView | Enterprise PMO Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -17,19 +19,52 @@ if "preloader_shown" not in st.session_state:
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- PRELOADER ANIMATION GATE ---
+# --- DYNAMIC MODULE DISCOVERY & IMPORT ---
+def load_repository_modules():
+    modules = {}
+    
+    # Check root directory or subdirectories for module Python files
+    search_dirs = [".", "modules", "views", "pages"]
+    
+    for search_dir in search_dirs:
+        if os.path.exists(search_dir):
+            for file in sorted(os.listdir(search_dir)):
+                if file.endswith(".py") and file not in ["app.py", "setup.py", "__init__.py"]:
+                    module_name = file.replace(".py", "").replace("_", " ").title()
+                    file_path = os.path.join(search_dir, file)
+                    
+                    try:
+                        spec = importlib.util.spec_from_file_location(file.replace(".py", ""), file_path)
+                        mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(mod)
+                        
+                        # Detect render or main entry function in the imported module
+                        if hasattr(mod, "render"):
+                            modules[module_name] = mod.render
+                        elif hasattr(mod, "main"):
+                            modules[module_name] = mod.main
+                        elif hasattr(mod, "show"):
+                            modules[module_name] = mod.show
+                        else:
+                            modules[module_name] = lambda mod=mod: st.write(f"Module `{module_name}` loaded.")
+                    except Exception as e:
+                        st.sidebar.warning(f"Failed to import {file}: {e}")
+                        
+    return modules
+
+# --- FULLSCREEN PRELOADER GATE ---
 if not st.session_state.preloader_shown:
-    preloader_html = """
+    fullpage_preloader_html = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #e2e8f0; overflow: hidden; }
-            #preloader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0b0f19; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
-            .logo-animation-box { text-align: center; max-width: 400px; width: 100%; padding: 20px; }
-            .animated-logo-svg { width: 160px; height: auto; margin-bottom: 25px; }
+            html, body { width: 100%; height: 100%; overflow: hidden; background-color: #0b0f19; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+            #preloader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0b0f19; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999999; }
+            .logo-animation-box { text-align: center; max-width: 450px; width: 100%; padding: 20px; }
+            .animated-logo-svg { width: 180px; height: auto; margin-bottom: 25px; }
             .tower-structure { stroke: #10b981; stroke-width: 2.5; fill: none; stroke-dasharray: 600; stroke-dashoffset: 600; animation: drawTower 2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
             .signal-wave { fill: none; stroke: #0284c7; stroke-width: 2; opacity: 0; transform-origin: center; filter: drop-shadow(0 0 8px rgba(2, 132, 199, 0.6)); animation: rippleWave 2.2s infinite cubic-bezier(0.215, 0.610, 0.355, 1); }
             .wave-2 { animation-delay: 0.4s; stroke: #06b6d4; }
@@ -65,7 +100,7 @@ if not st.session_state.preloader_shown:
     </body>
     </html>
     """
-    components.html(preloader_html, height=500)
+    components.html(fullpage_preloader_html, height=1000, scrolling=False)
     time.sleep(3.5)
     st.session_state.preloader_shown = True
     st.rerun()
@@ -84,7 +119,6 @@ def render_login_page():
             submit = st.form_submit_button("Access PMO Dashboard", use_container_width=True)
             
             if submit:
-                # Sanitizes whitespace and checks against admin / pmo2026 or admin123
                 clean_user = username.strip()
                 clean_pass = password.strip()
                 if clean_user == "admin" and clean_pass in ["pmo2026", "pmo2026!", "admin123"]:
@@ -97,23 +131,32 @@ if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# --- MAIN DASHBOARD (RUNS AFTER LOGIN) ---
+# --- MAIN DASHBOARD & DISCOVERED MODULE ROUTER ---
+MODULES = load_repository_modules()
+
 st.sidebar.title("📌 PMO Navigation")
 
-# Sample router fallback if MODULES dict is imported or loaded externally
-if 'MODULES' not in locals():
-    MODULES = {"Executive Analytics": None, "Project Tracking": None, "EVM Cost Forecasting": None}
+if MODULES:
+    selected_module_name = st.sidebar.radio(
+        "Select Project View:",
+        options=list(MODULES.keys()),
+        index=0
+    )
+    
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚪 Log Out", use_container_width=True):
+        st.session_state.authenticated = False
+        st.rerun()
 
-selected_module = st.sidebar.radio(
-    "Select Project View:",
-    options=list(MODULES.keys()),
-    index=0
-)
+    st.sidebar.caption("GEView Enterprise PMO Dashboard v1.0")
 
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Log Out", use_container_width=True):
-    st.session_state.authenticated = False
-    st.rerun()
-
-st.sidebar.caption("GEView Enterprise PMO Dashboard v1.0")
-st.title("Welcome to GEView Enterprise PMO Dashboard")
+    # Render selected module execution logic
+    module_function = MODULES[selected_module_name]
+    try:
+        module_function()
+    except Exception as e:
+        st.error(f"Error executing module `{selected_module_name}`: {e}")
+else:
+    st.sidebar.warning("No modules found in repository.")
+    st.title("GEView PMO Dashboard Home")
+    st.info("No sub-module `.py` files detected in repository root or modules directory.")
