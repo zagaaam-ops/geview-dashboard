@@ -1,8 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pydeck as pdk
 import time
+
+# Optional folium map integration
+try:
+    import folium
+    from streamlit_folium import st_folium
+    FOLIUM_AVAILABLE = True
+except ImportError:
+    FOLIUM_AVAILABLE = False
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -12,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- GLOBAL ENTERPRISE DATA STORE ---
+# --- GLOBAL PMO DATA STORAGE ---
 if "pmo_data" not in st.session_state:
     st.session_state.pmo_data = {
         "price_book": pd.DataFrame([
@@ -100,23 +107,31 @@ if not st.session_state.preloader_shown:
     st.session_state.preloader_shown = True
     st.rerun()
 
-# --- HIGH-CONTRAST ENTERPRISE THEME STYLING ---
+# --- HIGH-CONTRAST ENTERPRISE SAAS THEME ---
 st.markdown("""
     <style>
-        .stApp { background-color: #0f172a; color: #f8fafc; }
-        [data-testid="stSidebar"] { background-color: #1e293b !important; border-right: 1px solid #334155; }
-        div[data-baseweb="input"], div[data-baseweb="select"] { background-color: #1e293b !important; color: white !important; border: 1px solid #475569 !important; }
-        .stButton > button { background-color: #10b981 !important; color: white !important; border: none !important; font-weight: bold !important; border-radius: 6px !important; }
-        .stButton > button:hover { background-color: #059669 !important; }
-        div[data-testid="stMetricValue"] { color: #10b981 !important; font-weight: bold; }
-        .stDataFrame { border: 1px solid #334155; border-radius: 6px; }
+        .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
+        [data-testid="stSidebar"] { background-color: #0f172a !important; color: #f8fafc !important; }
+        [data-testid="stSidebar"] * { color: #f8fafc !important; }
+        
+        .stMetric { background-color: #ffffff; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        div[data-testid="stMetricValue"] { color: #0284c7 !important; font-size: 28px !important; font-weight: 700 !important; }
+        div[data-testid="stMetricLabel"] { color: #475569 !important; font-size: 14px !important; font-weight: 600 !important; }
+
+        .stButton > button { background-color: #0284c7 !important; color: white !important; font-weight: 600 !important; border-radius: 6px !important; border: none !important; }
+        .stButton > button:hover { background-color: #0369a1 !important; }
+
+        div[data-baseweb="input"] input, div[data-baseweb="select"] { background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
+        .stDataFrame { border: 1px solid #e2e8f0; border-radius: 6px; background-color: #ffffff; }
+        
+        h1, h2, h3 { color: #0f172a !important; font-weight: 700 !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- LOGIN GATE ---
 if not st.session_state.authenticated:
-    st.markdown("<h1 style='text-align: center; color: #10b981; margin-top: 40px;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #94a3b8;'>Telecom Infrastructure & Civil Works Governance System</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #0284c7; margin-top: 40px;'>📡 Project Plus Enterprise PMO</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #475569;'>Telecom Infrastructure & Civil Works Governance System</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -142,7 +157,7 @@ if not st.session_state.authenticated:
 
 # --- SIDEBAR CONTROL & NAVIGATION ---
 st.sidebar.markdown("## 📡 Project Plus")
-st.sidebar.caption(f"User Role: **{st.session_state.user_role}**")
+st.sidebar.caption(f"Active Role: **{st.session_state.user_role}**")
 
 if st.session_state.user_role == "Project Manager (PMO)":
     nav_options = ["Bird's Eye PMO View", "Site Survey & BOQ Engine", "Extra Works (EW) & Approvals", "Vendor Management", "GIS Site Map", "Master Price Book"]
@@ -153,7 +168,7 @@ elif st.session_state.user_role == "Vendor / Subcontractor":
 else:
     nav_options = ["Bird's Eye PMO View", "Extra Works (EW) & Approvals", "Master Price Book"]
 
-selected_page = st.sidebar.radio("Enterprise Navigation:", nav_options)
+selected_page = st.sidebar.radio("Navigation Menu:", nav_options)
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Logout / Switch Role", use_container_width=True):
@@ -162,39 +177,35 @@ if st.sidebar.button("🚪 Logout / Switch Role", use_container_width=True):
 
 st.sidebar.caption("Project Plus Engine v2.0")
 
-# --- HELPER FUNCTION: PYDECK MAP GENERATOR ---
-def render_pydeck_map(df, map_style_choice):
-    styles = {
-        "Street View": "mapbox://styles/mapbox/dark-v10",
-        "Satellite View": "mapbox://styles/mapbox/satellite-v9",
-        "Hybrid View": "mapbox://styles/mapbox/satellite-streets-v11"
-    }
+# --- HIGH RELIABILITY GIS MAP GENERATOR ---
+def render_enterprise_map(df, tile_style):
+    if FOLIUM_AVAILABLE:
+        m = folium.Map(location=[24.2, 45.0], zoom_start=5.2, tiles=None)
+        
+        if tile_style == "Satellite View":
+            folium.TileLayer(
+                tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attr='Esri World Imagery',
+                name='Satellite'
+            ).add_to(m)
+        else:
+            folium.TileLayer('OpenStreetMap', name='Street Map').add_to(m)
 
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=df,
-        get_position=["longitude", "latitude"],
-        get_color="[16, 185, 129, 200]",
-        get_radius=35000,
-        pickable=True,
-    )
-
-    view_state = pdk.ViewState(
-        latitude=24.0,
-        longitude=45.0,
-        zoom=4.8,
-        pitch=30
-    )
-
-    tooltip = {"html": "<b>Site ID:</b> {Site ID}<br/><b>Region:</b> {Region}<br/><b>Status:</b> {Status}<br/><b>Budget:</b> {Budget (SAR)} SAR", "style": {"color": "white"}}
-
-    r = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style=styles.get(map_style_choice, "mapbox://styles/mapbox/dark-v10"),
-        tooltip=tooltip
-    )
-    st.pydeck_chart(r)
+        for _, row in df.iterrows():
+            popup_txt = f"<b>{row['Site ID']}</b><br>Region: {row['Region']}<br>Status: {row['Status']}<br>Budget: {row['Budget (SAR)']} SAR"
+            folium.CircleMarker(
+                location=[row['latitude'], row['longitude']],
+                radius=9,
+                popup=popup_txt,
+                color='#0284c7',
+                fill=True,
+                fill_color='#10b981',
+                fill_opacity=0.85
+            ).add_to(m)
+        
+        st_folium(m, width="100%", height=450)
+    else:
+        st.map(df[["latitude", "longitude"]])
 
 # ==========================================
 # PAGE 1: BIRD'S EYE PMO DASHBOARD
@@ -210,13 +221,13 @@ if selected_page == "Bird's Eye PMO View":
     k3.metric("Pending EW Value", f"{sum(ew['Amount'] for ew in st.session_state.pmo_data['extra_works'] if 'Pending' in ew['Status']):,} SAR")
     k4.metric("Active Subcontractors", len(st.session_state.pmo_data["vendors"]))
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2 = st.columns([2, 1])
 
     with c1:
-        st.subheader("📍 Live Map View of Approved Telecom Sites")
-        map_mode = st.radio("Map Terrain View:", ["Street View", "Satellite View", "Hybrid View"], horizontal=True, key="pmo_map_toggle")
-        render_pydeck_map(df_sites, map_mode)
+        st.subheader("📍 Live Map View of Approved Sites")
+        map_style = st.radio("Map Layer:", ["Street View", "Satellite View"], horizontal=True, key="pmo_map_select")
+        render_enterprise_map(df_sites, map_style)
 
     with c2:
         st.subheader("📋 Active Site Portfolio")
@@ -239,7 +250,7 @@ elif selected_page == "Site Survey & BOQ Engine":
         concrete = st.number_input("Concrete Foundation Volume (m³)", value=30.0, step=5.0)
         fence_len = st.number_input("Perimeter Fencing (m)", value=48.0, step=4.0)
 
-    if st.button("⚙️ Generate Site BOQ & Save to Project Plus", type="primary"):
+    if st.button("⚙️ Generate Site BOQ & Save to Project Plus"):
         mult = 1.0
         if "Class B" in soil: mult = 1.25
         elif "Class C" in soil: mult = 1.60
@@ -318,9 +329,9 @@ elif selected_page == "GIS Site Map":
     st.title("🗺️ Interactive GIS Telecom Tower Map")
     st.caption("Geospatial visualization of civil engineering works across the Kingdom.")
 
-    map_mode_gis = st.radio("Select Terrain View Mode:", ["Street View", "Satellite View", "Hybrid View"], horizontal=True, key="gis_map_toggle")
+    map_mode_gis = st.radio("Select Terrain View Mode:", ["Street View", "Satellite View"], horizontal=True, key="gis_map_toggle")
     df_map = st.session_state.pmo_data["sites"]
-    render_pydeck_map(df_map, map_mode_gis)
+    render_enterprise_map(df_map, map_mode_gis)
     st.dataframe(df_map, use_container_width=True)
 
 # ==========================================
