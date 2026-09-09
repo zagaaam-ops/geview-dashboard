@@ -1,85 +1,122 @@
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(page_title="GEView System Dashboard", layout="wide")
 
-from modules import (
-    analytics, gantt, gis_map, finance, evm, evm_analytics, supply_chain,
-    hr, hr_certifications, site_survey, acceptance, editor, boq_export,
-    boq_extra_works, vendor_compare, price_book, docs, workflow, alerts, pdf_report
-)
+from modules.acceptance import render_acceptance_module
+from modules.alerts import render_alerts_module
+from modules.analytics import render_analytics_module
+from modules.boq_extra_works import render_boq_extra_works_module
+from modules.docs import render_docs_module
+from modules.editor import render_editor_module
+from modules.evm import render_evm_module
+from modules.evm_analytics import render_evm_analytics_module
+from modules.finance import render_finance_module
+from modules.gantt import render_gantt_module
+from modules.gis_map import render_gis_map_module
+from modules.hr import render_hr_module
+from modules.hr_certifications import render_hr_certifications_module
+from modules.pdf_report import generate_pdf_report
+from modules.price_book import render_price_book_module
+from modules.site_survey import render_site_survey_module
+from modules.supply_chain import render_supply_chain_module
+from modules.vendor_compare import render_vendor_comparison_module
+from modules.workflow import render_workflow_module
+
+try:
+    from modules.db import get_db_engine, load_data_from_db
+    engine = get_db_engine()
+    df = load_data_from_db(engine)
+except Exception:
+    engine = None
+    df = None
+
+if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+    df = pd.DataFrame({
+        "Site_ID": [f"RIY-{i:03d}" for i in range(101, 111)],
+        "Site_Name": [f"Site Alpha {i}" for i in range(1, 11)],
+        "Region": ["Central"] * 5 + ["Western"] * 5,
+        "Status": ["Completed", "In Progress", "Pending", "In Progress", "Completed"] * 2,
+        "Progress": [100, 65, 20, 80, 100, 45, 90, 10, 100, 55],
+        "Budget_SAR": [150000, 200000, 120000, 180000, 220000, 130000, 170000, 190000, 210000, 160000],
+        "Actual_Cost_SAR": [142000, 140000, 30000, 150000, 210000, 70000, 150000, 25000, 205000, 95000],
+        "Contractor": ["Abrar Comm"] * 5 + ["Telecom Tech"] * 5
+    })
 
 st.sidebar.title("GEView System")
 user_role = st.sidebar.selectbox("Active Role Context", ["Project Manager", "Finance Director", "Field Engineer"])
 
-MODULE_MAP = {
-    "🦅 Executive Analytics (Bird's Eye)": analytics,
-    "⚡ Implementation & Gantt Chart": gantt,
-    "🗺️ Interactive GIS Map View": gis_map,
-    "💳 Commercial Finance & IPC Invoicing": finance,
-    "📊 Earned Value Management (EVM)": evm,
-    "📈 EVM Advanced Cost Forecasting": evm_analytics,
-    "📦 Supply Chain & Material Requests": supply_chain,
-    "👷 HR & Manpower Allocation": hr,
-    "📜 HR Staff Certifications (PMP/Civil)": hr_certifications,
-    "📋 Technical Site Survey (TSSR)": site_survey,
-    "✅ PAC / FAC Acceptance Workflow": acceptance,
-    "✏️ Dynamic BOQ Live Editor": editor,
-    "📤 BOQ Document Export": boq_export,
-    "🚧 Extra Works (EW) Tracking": boq_extra_works,
-    "🔍 Subcontractor Rate Comparison": vendor_compare,
-    "📖 Standard Telecom Price Book": price_book,
-    "📁 Document Control & Submittals": docs,
-    "🔄 Site Handover Approval Engine": workflow,
-    "🚨 Delay Alerts & Escalation Logs": alerts,
-    "📄 Automated PDF Report Generator": pdf_report,
+MODULE_ROUTER = {
+    "🦅 Executive Analytics (Bird's Eye)": "analytics",
+    "⚡ Implementation & Gantt Chart": "gantt",
+    "🗺️ Interactive GIS Map View": "gis_map",
+    "💳 Commercial Finance & IPC Invoicing": "finance",
+    "📊 Earned Value Management (EVM)": "evm",
+    "📈 EVM Advanced Cost Forecasting": "evm_analytics",
+    "📦 Supply Chain & Material Requests": "supply_chain",
+    "👷 HR & Manpower Allocation": "hr",
+    "📜 HR Staff Certifications (PMP/Civil)": "hr_certifications",
+    "📋 Technical Site Survey (TSSR)": "site_survey",
+    "✅ PAC / FAC Acceptance Workflow": "acceptance",
+    "✏️ Dynamic BOQ Live Editor": "editor",
+    "🚧 Extra Works (EW) Tracking": "boq_extra_works",
+    "🔍 Subcontractor Rate Comparison": "vendor_compare",
+    "📖 Standard Telecom Price Book": "price_book",
+    "📁 Document Control & Submittals": "docs",
+    "🔄 Site Handover Approval Engine": "workflow",
+    "🚨 Delay Alerts & Escalation Logs": "alerts",
+    "📄 Automated PDF Report Generator": "pdf_report",
 }
 
-selected_view = st.sidebar.selectbox("Select Module / View", list(MODULE_MAP.keys()))
-selected_module = MODULE_MAP[selected_view]
+selected_view = st.sidebar.selectbox("Select Module / View", list(MODULE_ROUTER.keys()))
+module_key = MODULE_ROUTER[selected_view]
 
-# Explicit Entry Point Invocation
 try:
-    if selected_view == "💳 Commercial Finance & IPC Invoicing":
-        # Check all possible function names for finance
-        if hasattr(finance, "render_finance_module"):
-            finance.render_finance_module(user_role)
-        elif hasattr(finance, "show"):
-            finance.show()
-        elif hasattr(finance, "render"):
-            finance.render()
-        else:
-            st.error("Finance module entry point not found. Check `grep -E '^def ' modules/finance.py`")
-
-    elif selected_view == "📊 Earned Value Management (EVM)":
-        if hasattr(evm, "render_evm_module"):
-            evm.render_evm_module()
-        elif hasattr(evm, "show"):
-            evm.show()
-        elif hasattr(evm, "render"):
-            evm.render()
-        else:
-            st.error("EVM module entry point not found. Check `grep -E '^def ' modules/evm.py`")
-
-    elif selected_view == "📦 Supply Chain & Material Requests":
-        if hasattr(supply_chain, "render_supply_chain_module"):
-            supply_chain.render_supply_chain_module()
-        elif hasattr(supply_chain, "show"):
-            supply_chain.show()
-        elif hasattr(supply_chain, "render"):
-            supply_chain.render()
-        else:
-            st.error("Supply Chain entry point not found. Check `grep -E '^def ' modules/supply_chain.py`")
-
-    else:
-        # Fallback for remaining modules
-        executed = False
-        for entry in ["show", "render", "main", "app", "display", "run"]:
-            if hasattr(selected_module, entry):
-                getattr(selected_module, entry)()
-                executed = True
-                break
-        if not executed:
-            st.warning(f"No standard entry function found in `{selected_view}`.")
-
+    if module_key == "analytics":
+        render_analytics_module(df)
+    elif module_key == "gantt":
+        render_gantt_module(df)
+    elif module_key == "gis_map":
+        render_gis_map_module(user_role)
+    elif module_key == "finance":
+        render_finance_module(user_role)
+    elif module_key == "evm":
+        render_evm_module(df)
+    elif module_key == "evm_analytics":
+        render_evm_analytics_module(user_role)
+    elif module_key == "supply_chain":
+        render_supply_chain_module(user_role)
+    elif module_key == "hr":
+        render_hr_module(user_role)
+    elif module_key == "hr_certifications":
+        render_hr_certifications_module(user_role)
+    elif module_key == "site_survey":
+        render_site_survey_module(user_role)
+    elif module_key == "acceptance":
+        render_acceptance_module(df)
+    elif module_key == "editor":
+        render_editor_module(df, user_role, fx_rate=3.75)
+    elif module_key == "boq_extra_works":
+        render_boq_extra_works_module(user_role)
+    elif module_key == "vendor_compare":
+        render_vendor_comparison_module(fx_rate=3.75)
+    elif module_key == "price_book":
+        render_price_book_module(engine)
+    elif module_key == "docs":
+        render_docs_module(df, upload_dir="./uploads")
+    elif module_key == "workflow":
+        render_workflow_module(df, user_role, fx_rate=3.75)
+    elif module_key == "alerts":
+        render_alerts_module(df)
+    elif module_key == "pdf_report":
+        st.header("📄 Automated PDF Report Generator")
+        if st.button("Generate Complete PDF Report"):
+            pdf_data = generate_pdf_report(df)
+            st.download_button(
+                label="Download PDF",
+                data=pdf_data if pdf_data else b"",
+                file_name="GEView_System_Report.pdf",
+                mime="application/pdf"
+            )
 except Exception as e:
-    st.error(f"Error executing `{selected_view}`: {str(e)}")
+    st.error(f"Error executing module `{selected_view}`: {str(e)}")
