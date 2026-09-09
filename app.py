@@ -1,16 +1,16 @@
 import streamlit as st
 from utils.rbac import get_role_permissions
 
-# Import all 6 ERP Modules
+# Import all ERP Modules
 from modules.evm_analytics import render_evm_analytics_module
 from modules.supply_chain import render_supply_chain_module
 from modules.gis_map import render_gis_map_module
 from modules.hr_certifications import render_hr_certifications_module
 from modules.finance import render_finance_module
+from modules.boq_extra_works import render_boq_extra_works_module
 
 st.set_page_config(page_title="Project Plus ERP", layout="wide")
 
-# Pre-seeded User Database
 USERS = {
     "admin": ("admin123", "Project Manager"),
     "finance": ("finance123", "Finance Director"),
@@ -41,7 +41,6 @@ else:
     role = st.session_state["user_role"]
     perms = get_role_permissions(role)
 
-    # Sidebar Header & User Status
     st.sidebar.title("🦅 Project Plus ERP")
     st.sidebar.caption(f"Role: **{role}**")
     
@@ -51,8 +50,10 @@ else:
 
     st.sidebar.markdown("---")
 
-    # Dynamic Navigation Based on Role Permissions
+    # Navigation options
     available_menus = ["🦅 Bird's Eye Dashboard"]
+    
+    available_menus.append("📋 BOQ & Extra Works (EW)")
     
     if perms.get("can_view_finance", True):
         available_menus.append("💳 Commercial Finance & IPC")
@@ -70,6 +71,8 @@ else:
     # Module Router
     if selected_menu == "🦅 Bird's Eye Dashboard" or selected_menu == "📈 EVM & Cost Forecasting":
         render_evm_analytics_module(role)
+    elif selected_menu == "📋 BOQ & Extra Works (EW)":
+        render_boq_extra_works_module(role)
     elif selected_menu == "💳 Commercial Finance & IPC":
         render_finance_module(role)
     elif selected_menu == "📦 Supply Chain & Inventory":
