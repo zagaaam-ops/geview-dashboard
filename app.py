@@ -1,16 +1,17 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # Page Configuration
 st.set_page_config(
-    page_title="GEView PMO System",
-    page_icon="📋",
+    page_title="Project Plus | Telecom Infrastructure PMO",
+    page_icon="📡",
     layout="wide"
 )
 
-# Sidebar - Header & Role Selection
-st.sidebar.title("GEView PMO System")
-st.sidebar.caption("Enterprise Telecom Infrastructure Governance")
+# Sidebar - Branding & Role Selection
+st.sidebar.title("Project Plus")
+st.sidebar.caption("Telecom Infrastructure PMO System")
 
 system_role = st.sidebar.selectbox(
     "Active System Role",
@@ -32,7 +33,7 @@ selected_module = st.sidebar.radio(
         "Milestones & Invoicing",
         "Document Repository"
     ],
-    index=2  # Default to Master BOQ & Price Book
+    index=1  # Default to Site Management & Map
 )
 
 # -----------------------------------------------------------------------------
@@ -40,7 +41,7 @@ selected_module = st.sidebar.radio(
 # -----------------------------------------------------------------------------
 if selected_module == "Portfolio Overview":
     st.title("📊 Portfolio Overview")
-    st.info("System executive summary and portfolio health indicators.")
+    st.info("Executive summary and key portfolio health indicators.")
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Active Sites", "142")
@@ -53,7 +54,48 @@ if selected_module == "Portfolio Overview":
 # -----------------------------------------------------------------------------
 elif selected_module == "Site Management & Map":
     st.title("🗺️ Site Management & Geographic Distribution")
-    st.info("Interactive site location tracking and regional deployment status.")
+    
+    # Sub-tabs for Map & Spatial Analytics
+    map_tab, birdseye_tab = st.tabs(["Map View", "Bird's Eye View"])
+    
+    # Sample site geographic locations across KSA
+    site_data = pd.DataFrame({
+        'Site_ID': ['RUH-001', 'RUH-002', 'JED-001', 'DMM-001', 'RUH-003'],
+        'Site_Name': ['Olaya Tower GF 30m', 'King Fahd RT 9m', 'Corniche RDS 40m', 'Dammam Port 36m', 'KAFD Lattice 50m'],
+        'Latitude': [24.7136, 24.7743, 21.5433, 26.4207, 24.7615],
+        'Longitude': [46.6753, 46.6380, 39.1728, 50.0888, 46.6438],
+        'Status': ['On Air', 'In Construction', 'On Air', 'Civil Completed', 'PAT Approved']
+    })
+    
+    with map_tab:
+        st.subheader("Geographic Site Location Map")
+        st.map(site_data, latitude='Latitude', longitude='Longitude', size=20, color='#0066CC')
+        st.dataframe(site_data, use_container_width=True)
+
+    with birdseye_tab:
+        st.subheader("🦅 Bird's Eye View (3D & Satellite Analytics)")
+        st.info("High-resolution site layouts, tower elevation profiles, and 3D spatial modeling.")
+        
+        selected_site = st.selectbox(
+            "Select Site for Bird's Eye Analysis", 
+            site_data['Site_ID'] + " - " + site_data['Site_Name']
+        )
+        
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            st.markdown(f"**3D / Satellite Visualization for {selected_site}**")
+            st.map(
+                site_data[site_data['Site_ID'] == selected_site.split(' - ')[0]], 
+                latitude='Latitude', 
+                longitude='Longitude', 
+                zoom=15
+            )
+        with c2:
+            st.markdown("**Site Technical Specs**")
+            st.write("• **Tower Type:** Ground Standing / Lattice")
+            st.write("• **Height:** 30m / 50m")
+            st.write("• **Wind Load Rating:** 160 km/h")
+            st.write("• **Foundation Volume:** 42 m³")
 
 # -----------------------------------------------------------------------------
 # Module 3: Master BOQ & Price Book
@@ -63,7 +105,6 @@ elif selected_module == "Master BOQ & Price Book":
     
     tab1, tab2 = st.tabs(["Base Site Models Catalog", "Master UPL / EW Items"])
     
-    # Tab 1: Base Site Models
     with tab1:
         st.subheader("Base Site Model Master Catalog")
         try:
@@ -74,7 +115,6 @@ elif selected_module == "Master BOQ & Price Book":
         except Exception as e:
             st.error(f"Error loading site models from boq_data.py: {e}")
 
-    # Tab 2: Master UPL / Extra Works Items
     with tab2:
         st.subheader("Extra Works Line Item Pricing")
         try:
@@ -84,9 +124,9 @@ elif selected_module == "Master BOQ & Price Book":
                 st.metric("Total Extra Works Items Loaded", len(df_ew))
                 st.dataframe(df_ew, use_container_width=True)
             else:
-                st.warning("Extra Works list is empty. Ensure 'Ven1 Extra Item UPL.csv' is present in the repo root.")
+                st.warning("Extra Works list is empty. Verify 'Ven1 Extra Item UPL.csv' is in your repository.")
         except Exception as e:
-            st.error(f"Error loading Extra Works data from boq_extra_works.py: {e}")
+            st.error(f"Error loading Extra Works data: {e}")
 
 # -----------------------------------------------------------------------------
 # Module 4: Extra Works (EW) Governance
