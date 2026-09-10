@@ -172,6 +172,4 @@ elif selected_module == "Milestones & Invoice Auditing":
 # -----------------------------------------------------------------------------
 elif selected_module == "Document Repository":
     st.title("📁 Central PMO Document Repository")
-    st.info("Store and manage technical designs, site survey reports, and commercial approvals.")git add app.py
-git commit -m "Update app.py to match complete PMO roadmap including Bird's Eye, GIS, and BOQ generator"
-git push origin main
+    st.info("Store and manage technical designs, site survey reports, and commercial approvals.")
