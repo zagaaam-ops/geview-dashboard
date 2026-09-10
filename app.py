@@ -34,7 +34,7 @@ selected_module = st.sidebar.radio(
         "Milestones & Invoice Auditing",
         "Document Repository"
     ],
-    index=1  # Default to Site Management & GIS Map
+    index=6  # Set default focus to Document Repository
 )
 
 # Sample Site Data (KSA Locations)
@@ -110,7 +110,7 @@ elif selected_module == "Site Management & GIS Map":
 # -----------------------------------------------------------------------------
 elif selected_module == "Site Survey & BOQ Generator":
     st.title("🛠️ Site Survey & Interactive BOQ Generator")
-    st.info("Automate Site BOQ generation from technical survey inputs.")
+    st.caption("Automate Site BOQ generation from technical survey inputs.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -120,7 +120,14 @@ elif selected_module == "Site Survey & BOQ Generator":
         tower_height = st.selectbox("Tower Height", ["9m", "12m", "25m", "30m", "36m", "42m", "50m", "60m"])
         soil_type = st.selectbox("Soil Condition", ["Normal Soil", "Soft Rock", "Hard Rock (Breaker Required)", "Submerged/Waterlogged"])
 
-    st.button("Generate Preliminary BOQ")
+    if st.button("Generate Preliminary BOQ"):
+        st.success(f"Generated BOQ Model for Site {site_id} ({tower_type}, {tower_height})")
+        sample_boq = pd.DataFrame([
+            {"Item Code": "CIV-001", "Description": f"Foundation Construction for {tower_type}", "Qty": 1, "Unit": "LS", "Est. Cost (USD)": 12500.00},
+            {"Item Code": "TWR-001", "Description": f"Steel Tower Supply & Erection {tower_height}", "Qty": 1, "Unit": "Set", "Est. Cost (USD)": 28000.00},
+            {"Item Code": "ELE-001", "Description": "SEC Power Hookup & Meter Panel", "Qty": 1, "Unit": "Job", "Est. Cost (USD)": 4500.00}
+        ])
+        st.dataframe(sample_boq, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # Module 4: Master BOQ & Price Book
@@ -158,18 +165,62 @@ elif selected_module == "Master BOQ & Price Book":
 # -----------------------------------------------------------------------------
 elif selected_module == "Extra Works (EW) Governance":
     st.title("⚙️ Extra Works (EW) Governance & Variation Approval")
-    st.info("Submit and approve commercial variation claims against the 638 UPL catalog.")
+    st.caption("Submit and approve commercial variation claims against the 638 UPL catalog.")
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown("### Submit EW Request")
+        ew_site = st.selectbox("Select Site ID", site_data['Site_ID'])
+        ew_item = st.text_input("UPL Item Code", "EW-001")
+        ew_qty = st.number_input("Claim Quantity", min_value=1.0, value=1.0)
+        st.button("Submit Variation Claim")
+    with col2:
+        st.markdown("### Active Claims Register")
+        claims_df = pd.DataFrame([
+            {"Claim ID": "EWC-101", "Site": "RUH-001", "Item": "EW-001 Dewatering System", "Qty": 1, "Status": "Under Review", "Amount": "$5,690.88"},
+            {"Claim ID": "EWC-102", "Site": "JED-001", "Item": "EW-008 Rock Excavation", "Qty": 45, "Status": "Approved", "Amount": "$606.60"}
+        ])
+        st.dataframe(claims_df, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # Module 6: Milestones & Invoice Auditing
 # -----------------------------------------------------------------------------
 elif selected_module == "Milestones & Invoice Auditing":
     st.title("💳 Commercial Milestones & Invoice Auditing")
-    st.info("Automated invoice auditing against physical milestones and PAT approvals.")
+    st.caption("Automated invoice auditing against physical milestones and PAT approvals.")
+    
+    st.subheader("Site Milestone Verification Ledger")
+    milestone_df = pd.DataFrame([
+        {"Site ID": "RUH-001", "TSSR Approval": "✅ Complete", "Civil Acceptance": "✅ Complete", "Telecom PAT": "⏳ Pending", "Invoicing Cap": "60%"},
+        {"Site ID": "RUH-002", "TSSR Approval": "✅ Complete", "Civil Acceptance": "⏳ In Progress", "Telecom PAT": "❌ Pending", "Invoicing Cap": "20%"},
+        {"Site ID": "JED-001", "TSSR Approval": "✅ Complete", "Civil Acceptance": "✅ Complete", "Telecom PAT": "✅ Approved", "Invoicing Cap": "100%"}
+    ])
+    st.dataframe(milestone_df, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # Module 7: Document Repository
 # -----------------------------------------------------------------------------
 elif selected_module == "Document Repository":
     st.title("📁 Central PMO Document Repository")
-    st.info("Store and manage technical designs, site survey reports, and commercial approvals.")
+    st.caption("Store, manage, and audit technical designs, site survey reports (TSSR), and commercial approvals.")
+    
+    c1, c2 = st.columns([1, 2])
+    
+    with c1:
+        st.markdown("### 📤 Document Upload")
+        doc_site = st.selectbox("Site ID Reference", site_data['Site_ID'])
+        doc_type = st.selectbox("Document Category", ["Technical Site Survey Report (TSSR)", "Civil Structural Design (SSDD)", "Provisional Acceptance (PAT)", "Extra Works Approval (EWA)"])
+        uploaded_file = st.file_uploader("Choose a PDF/DWG file", type=['pdf', 'dwg', 'xlsx', 'png'])
+        if uploaded_file is not None:
+            st.success(f"File '{uploaded_file.name}' uploaded successfully for {doc_site}!")
+
+    with c2:
+        st.markdown("### 📄 Approved Document Register")
+        repo_data = pd.DataFrame([
+            {"Site ID": "RUH-001", "Document Category": "TSSR Report", "File Name": "RUH-001_TSSR_v2.pdf", "Status": "Approved", "Upload Date": "2026-08-15"},
+            {"Site ID": "RUH-001", "Document Category": "Structural Design", "File Name": "RUH-001_SSDD_Final.pdf", "Status": "Approved", "Upload Date": "2026-08-18"},
+            {"Site ID": "JED-001", "Document Category": "PAT Certificate", "File Name": "JED-001_PAT_Signed.pdf", "Status": "Verified", "Upload Date": "2026-09-01"},
+            {"Site ID": "DMM-001", "Document Category": "Extra Works Approval", "File Name": "DMM-001_EWA_Claim01.pdf", "Status": "Pending Signature", "Upload Date": "2026-09-05"}
+        ])
+        st.dataframe(repo_data, use_container_width=True)
+        
